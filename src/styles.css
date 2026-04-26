@@ -1,0 +1,201 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-neon-cyan: var(--neon-cyan);
+  --color-neon-pink: var(--neon-pink);
+  --color-neon-yellow: var(--neon-yellow);
+  --color-neon-green: var(--neon-green);
+  --color-neon-purple: var(--neon-purple);
+
+  --animate-float: float 2.5s ease-in-out infinite;
+  --animate-glow: glow 1.6s ease-in-out infinite;
+  --animate-pop: pop 0.5s ease-out forwards;
+  --animate-shake: shake 0.4s ease-in-out;
+  --animate-slide-bg: slide-bg 6s linear infinite;
+  --animate-run: run 0.5s steps(2) infinite;
+  --animate-rise: rise 1s ease-out forwards;
+}
+
+:root {
+  --radius: 0.875rem;
+  --background: oklch(0.16 0.05 270);
+  --foreground: oklch(0.98 0.01 250);
+  --card: oklch(0.22 0.06 275);
+  --card-foreground: oklch(0.98 0.01 250);
+  --popover: oklch(0.22 0.06 275);
+  --popover-foreground: oklch(0.98 0.01 250);
+  --primary: oklch(0.78 0.18 195);
+  --primary-foreground: oklch(0.16 0.05 270);
+  --secondary: oklch(0.3 0.08 285);
+  --secondary-foreground: oklch(0.98 0.01 250);
+  --muted: oklch(0.28 0.05 280);
+  --muted-foreground: oklch(0.75 0.04 265);
+  --accent: oklch(0.72 0.22 330);
+  --accent-foreground: oklch(0.16 0.05 270);
+  --destructive: oklch(0.65 0.25 25);
+  --destructive-foreground: oklch(0.98 0.01 250);
+  --border: oklch(0.35 0.07 280);
+  --input: oklch(0.3 0.06 280);
+  --ring: oklch(0.78 0.18 195);
+
+  --neon-cyan: oklch(0.85 0.2 200);
+  --neon-pink: oklch(0.75 0.25 340);
+  --neon-yellow: oklch(0.92 0.18 100);
+  --neon-green: oklch(0.85 0.22 145);
+  --neon-purple: oklch(0.65 0.22 300);
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-3deg);
+  }
+  50% {
+    transform: translateY(-12px) rotate(3deg);
+  }
+}
+@keyframes glow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 12px var(--neon-cyan),
+      0 0 24px var(--neon-cyan);
+  }
+  50% {
+    box-shadow:
+      0 0 24px var(--neon-pink),
+      0 0 48px var(--neon-pink);
+  }
+}
+@keyframes pop {
+  0% {
+    transform: scale(0.4) translateY(0);
+    opacity: 0;
+  }
+  40% {
+    transform: scale(1.2) translateY(-20px);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) translateY(-60px);
+    opacity: 0;
+  }
+}
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-8px);
+  }
+  75% {
+    transform: translateX(8px);
+  }
+}
+@keyframes slide-bg {
+  from {
+    background-position-y: 0;
+  }
+  to {
+    background-position-y: 800px;
+  }
+}
+@keyframes run {
+  from {
+    transform: translateY(0) scaleX(1);
+  }
+  to {
+    transform: translateY(-4px) scaleX(1.02);
+  }
+}
+@keyframes rise {
+  0% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-80px);
+    opacity: 0;
+  }
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family:
+      ui-sans-serif,
+      system-ui,
+      -apple-system,
+      "Segoe UI",
+      sans-serif;
+    overflow-x: hidden;
+    min-height: 100dvh;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: none;
+  }
+
+  #root {
+    min-height: 100dvh;
+  }
+}
+
+.text-glow-cyan {
+  text-shadow:
+    0 0 10px var(--neon-cyan),
+    0 0 20px var(--neon-cyan);
+}
+.text-glow-pink {
+  text-shadow:
+    0 0 10px var(--neon-pink),
+    0 0 20px var(--neon-pink);
+}
+.text-glow-yellow {
+  text-shadow:
+    0 0 10px var(--neon-yellow),
+    0 0 20px var(--neon-yellow);
+}
+
+.bg-track {
+  background-image:
+    linear-gradient(180deg, oklch(0.2 0.06 275) 0%, oklch(0.3 0.08 285) 100%),
+    repeating-linear-gradient(180deg, transparent 0 80px, rgba(255, 255, 255, 0.08) 80px 84px);
+  background-size:
+    100% 100%,
+    100% 160px;
+}
+
+.lane-divider {
+  background: repeating-linear-gradient(180deg, oklch(0.92 0.18 100) 0 30px, transparent 30px 60px);
+}
