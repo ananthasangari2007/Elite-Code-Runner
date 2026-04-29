@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { sfx, startMusic, stopMusic, setMuted, isMuted } from "@/game/audio";
 import { AVATARS } from "@/game/avatars";
+import { QUESTIONS_PER_RUN } from "@/game/config";
 import { QUESTIONS } from "@/game/questions";
 import type { GameSummary } from "@/game/store";
 import { Countdown } from "./Countdown";
@@ -83,7 +84,7 @@ export function GameCanvas({ playerName, avatarId, onEnd, onQuit }: Props) {
   currentQRef.current = currentQ;
 
   const refillQueueIfNeeded = useCallback((currentObjects: GameObject[]) => {
-    if (queueRef.current.length > 0 || questionsAskedRef.current >= QUESTIONS.length) return;
+    if (queueRef.current.length > 0 || questionsAskedRef.current >= QUESTIONS_PER_RUN) return;
 
     const blocked = new Set(currentObjects.map((obj) => obj.qIndex));
     if (currentQRef.current) blocked.add(currentQRef.current.qIndex);
@@ -97,7 +98,7 @@ export function GameCanvas({ playerName, avatarId, onEnd, onQuit }: Props) {
   }, []);
 
   const spawnQuestionObject = useCallback(() => {
-    if (questionsAskedRef.current >= QUESTIONS.length) return;
+    if (questionsAskedRef.current >= QUESTIONS_PER_RUN) return;
 
     setObjects((currentObjects) => {
       refillQueueIfNeeded(currentObjects);
@@ -213,7 +214,7 @@ export function GameCanvas({ playerName, avatarId, onEnd, onQuit }: Props) {
   }, [phase, spawnQuestionObject]);
 
   useEffect(() => {
-    if (phase !== "playing" || currentQ || questionsAsked >= QUESTIONS.length) return;
+    if (phase !== "playing" || currentQ || questionsAsked >= QUESTIONS_PER_RUN) return;
     if (objects.length > 0) return;
 
     const timeoutId = window.setTimeout(() => {
@@ -340,7 +341,7 @@ export function GameCanvas({ playerName, avatarId, onEnd, onQuit }: Props) {
     setLives(newLives);
     setCurrentQ(null);
 
-    if (newLives <= 0 || newAsked >= QUESTIONS.length) {
+    if (newLives <= 0 || newAsked >= QUESTIONS_PER_RUN) {
       endGame(newScore);
       return;
     }
@@ -401,7 +402,7 @@ export function GameCanvas({ playerName, avatarId, onEnd, onQuit }: Props) {
             <div className="text-center">
               <div className="text-[9px] uppercase text-muted-foreground sm:text-xs">Q</div>
               <div className="text-base leading-tight font-black text-glow-yellow sm:text-2xl">
-                {questionsAsked}/30
+                {questionsAsked}/{QUESTIONS_PER_RUN}
               </div>
             </div>
 
@@ -541,7 +542,7 @@ export function GameCanvas({ playerName, avatarId, onEnd, onQuit }: Props) {
         <QuestionPopup
           question={QUESTIONS[currentQ.qIndex]}
           index={questionsAsked}
-          total={30}
+          total={QUESTIONS_PER_RUN}
           onAnswer={handleAnswer}
         />
       )}

@@ -1,3 +1,4 @@
+import { QUESTIONS_PER_RUN } from "@/game/config";
 import type { PlayMode } from "@/game/store";
 
 type Props = {
@@ -8,33 +9,33 @@ type Props = {
 
 const rules = [
   {
-    icon: "📚",
+    icon: "C",
     title: "Topics: C Programming",
-    desc: "Arrays, Strings, and Functions with 30 multiple-choice questions.",
+    desc: `Arrays, Strings, and Functions with ${QUESTIONS_PER_RUN} multiple-choice questions.`,
   },
   {
-    icon: "❓",
-    title: "30 Questions Total",
+    icon: "Q",
+    title: `${QUESTIONS_PER_RUN} Questions Total`,
     desc: "Smash question marks on the running track to face challenges.",
   },
-  { icon: "✅", title: "Correct = +5 Points", desc: "Each right answer boosts your score." },
-  { icon: "♥", title: "3 Lives Total", desc: "You start every run with 3 hearts." },
+  { icon: "+", title: "Correct = +5 Points", desc: "Each right answer boosts your score." },
+  { icon: "3", title: "3 Lives Total", desc: "You start every run with 3 hearts." },
   {
-    icon: "❌",
+    icon: "-",
     title: "Wrong Answer = -1 Point And -1 Life",
     desc: "Every wrong answer costs both a life and a point.",
   },
   {
-    icon: "💀",
+    icon: "KO",
     title: "0 Lives = Game Over",
     desc: "When all 3 lives are gone, the run ends instantly.",
   },
   {
-    icon: "⏱",
+    icon: "T",
     title: "5 Minute Timer",
-    desc: "The run ends if the timer hits zero or all questions are completed.",
+    desc: `The run ends if the timer hits zero or you answer all ${QUESTIONS_PER_RUN} questions.`,
   },
-];
+] as const;
 
 export function RulesScreen({ mode, onStart, onBack }: Props) {
   const isDemo = mode === "demo";
@@ -60,7 +61,9 @@ export function RulesScreen({ mode, onStart, onBack }: Props) {
               key={rule.title}
               className="flex items-start gap-3 rounded-2xl border bg-card p-4 shadow-lg sm:gap-4 sm:p-5"
             >
-              <div className="shrink-0 text-3xl sm:text-4xl">{rule.icon}</div>
+              <div className="shrink-0 text-3xl font-black text-primary sm:text-4xl">
+                {rule.icon}
+              </div>
               <div>
                 <h3 className="text-base font-bold text-primary sm:text-lg">{rule.title}</h3>
                 <p className="text-sm text-muted-foreground sm:text-base">{rule.desc}</p>
