@@ -161,13 +161,18 @@ function Index() {
   };
 
   const finishGameplay = async (summary: GameSummary) => {
-    if (mode === "competition" && currentSessionId) {
-      await finishPlayerSession(currentSessionId, summary);
-      await refreshSnapshot();
-    }
     setResult(summary);
     setPhase("over");
   };
+
+  const finalizeGameplayResult = useCallback(
+    async (summary: GameSummary) => {
+      if (mode !== "competition" || !currentSessionId) return;
+      await finishPlayerSession(currentSessionId, summary);
+      await refreshSnapshot();
+    },
+    [currentSessionId, mode, refreshSnapshot],
+  );
 
   const quitGameplay = async () => {
     if (mode === "competition" && currentSessionId) {
@@ -271,6 +276,7 @@ function Index() {
           config={adminConfig}
           sessions={sessions}
           currentSessionId={currentSessionId}
+          onFinalizeResult={finalizeGameplayResult}
           onSubmitFeedback={handleSubmitFeedback}
           onPlayAgain={playAgain}
           onHome={goHome}

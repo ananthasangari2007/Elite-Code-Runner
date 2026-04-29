@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AVATARS } from "@/game/avatars";
 import { EventLeaderboard } from "./EventLeaderboard";
 import {
@@ -19,6 +19,7 @@ type Props = {
   config: AdminConfig;
   sessions: PlayerSession[];
   currentSessionId: string | null;
+  onFinalizeResult: (summary: GameSummary) => Promise<void>;
   onSubmitFeedback: (rating: number, feedback: string) => Promise<void>;
   onPlayAgain: () => void;
   onHome: () => void;
@@ -32,6 +33,7 @@ export function GameOver({
   config,
   sessions,
   currentSessionId,
+  onFinalizeResult,
   onSubmitFeedback,
   onPlayAgain,
   onHome,
@@ -40,11 +42,8 @@ export function GameOver({
   const [feedbackText, setFeedbackText] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const finalizeStartedRef = useRef(false);
 
-  const leaderboardSessions = useMemo(() => getLeaderboardSessions(sessions), [sessions]);
-  const finishedPlayers = getFinishedCompetitionSessions(sessions).length;
-  const expectedPlayers = getExpectedPlayerCount(config);
-  const playersLeft = Math.max(expectedPlayers - finishedPlayers, 0);
   const isDemo = mode === "demo";
   const accuracy = result.answeredCount === 0 ? 0 : result.accuracy;
   const currentSession = sessions.find((session) => session.id === currentSessionId) ?? null;
@@ -52,6 +51,65 @@ export function GameOver({
   const totalSeconds = Math.floor(result.timeMs / 1000);
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = (totalSeconds % 60).toString().padStart(2, "0");
+  const optimisticCurrentSession = useMemo(() => {
+    if (isDemo || !currentSessionId) return null;
+
+    return {
+      id: currentSessionId,
+      roundId: currentSession?.roundId ?? config.currentRoundId,
+      name: playerName,
+      avatarId,
+      mode: "competition" as const,
+      status: "finished" as const,
+      score: result.score,
+      timeMs: result.timeMs,
+      correctAnswers: result.correctAnswers,
+      answeredCount: result.answeredCount,
+      accuracy,
+      bestStreak: result.bestStreak,
+      feedbackRating: currentSession?.feedbackRating ?? null,
+      feedbackText: currentSession?.feedbackText ?? "",
+      feedbackSubmitted: currentSession?.feedbackSubmitted ?? false,
+      exitReason: currentSession?.exitReason ?? null,
+      exitedAt: currentSession?.exitedAt ?? null,
+      createdAt: currentSession?.createdAt ?? new Date().toISOString(),
+      updatedAt: currentSession?.updatedAt ?? new Date().toISOString(),
+    } satisfies PlayerSession;
+  }, [
+    accuracy,
+    avatarId,
+    config.currentRoundId,
+    currentSession,
+    currentSessionId,
+    isDemo,
+    playerName,
+    result.answeredCount,
+    result.bestStreak,
+    result.correctAnswers,
+    result.score,
+    result.timeMs,
+  ]);
+  const visibleSessions = useMemo(() => {
+    if (!optimisticCurrentSession) return sessions;
+
+    const withoutCurrent = sessions.filter((session) => session.id !== optimisticCurrentSession.id);
+    return [optimisticCurrentSession, ...withoutCurrent];
+  }, [optimisticCurrentSession, sessions]);
+  const leaderboardSessions = useMemo(
+    () => getLeaderboardSessions(visibleSessions),
+    [visibleSessions],
+  );
+  const finishedPlayers = getFinishedCompetitionSessions(visibleSessions).length;
+  const expectedPlayers = getExpectedPlayerCount(config);
+  const playersLeft = Math.max(expectedPlayers - finishedPlayers, 0);
+
+  useEffect(() => {
+    if (isDemo || !currentSessionId || finalizeStartedRef.current) return;
+    if (currentSession?.status === "finished") return;
+
+    finalizeStartedRef.current = true;
+    void onFinalizeResult(result);
+  }, [currentSession?.status, currentSessionId, isDemo, onFinalizeResult, result]);
 
   const submitFeedback = async () => {
     if (!currentSessionId || feedbackSubmitted) return;

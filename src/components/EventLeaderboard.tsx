@@ -17,7 +17,15 @@ function formatTime(timeMs: number) {
 }
 
 export function EventLeaderboard({ sessions, onBack }: Props) {
-  const topThree = [sessions[1], sessions[0], sessions[2]].filter(Boolean) as PlayerSession[];
+  const topThree = [
+    { session: sessions[1], standing: 2, styleIndex: 1 },
+    { session: sessions[0], standing: 1, styleIndex: 0 },
+    { session: sessions[2], standing: 3, styleIndex: 2 },
+  ].filter((entry) => entry.session) as Array<{
+    session: PlayerSession;
+    standing: number;
+    styleIndex: number;
+  }>;
   const remaining = sessions.slice(3);
 
   return (
@@ -52,10 +60,8 @@ export function EventLeaderboard({ sessions, onBack }: Props) {
       ) : (
         <>
           <div className="mt-8 grid items-end gap-4 md:grid-cols-3">
-            {topThree.map((session, index) => {
+            {topThree.map(({ session, standing, styleIndex }) => {
               const avatar = AVATARS[session.avatarId];
-              const standing = index === 0 ? 2 : index === 1 ? 1 : 3;
-              const styleIndex = index === 0 ? 1 : index === 1 ? 0 : 2;
               return (
                 <div
                   key={session.id}
