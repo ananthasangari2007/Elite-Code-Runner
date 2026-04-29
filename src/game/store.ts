@@ -189,11 +189,16 @@ function readLocalAdminConfig(): AdminConfig {
 
   try {
     const parsed = JSON.parse(raw) as Partial<AdminConfig>;
+    const expectedPlayers =
+      typeof parsed.expectedPlayers === "number" && Number.isFinite(parsed.expectedPlayers)
+        ? Math.max(1, parsed.expectedPlayers)
+        : DEFAULT_EXPECTED_PLAYERS;
+
     return {
       ...getDefaultAdminConfig(),
       ...parsed,
       adminPassword: parsed.adminPassword || DEFAULT_ADMIN_PASSWORD,
-      expectedPlayers: parsed.expectedPlayers || DEFAULT_EXPECTED_PLAYERS,
+      expectedPlayers,
       currentRoundId: parsed.currentRoundId || createRoundId(),
       updatedAt: parsed.updatedAt || nowIso(),
     };

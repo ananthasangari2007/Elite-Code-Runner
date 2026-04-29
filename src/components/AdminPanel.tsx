@@ -52,6 +52,7 @@ export function AdminPanel({
     config.leaderboardMode,
   );
   const [saving, setSaving] = useState(false);
+  const [settingsDirty, setSettingsDirty] = useState(false);
   const open = openProp ?? internalOpen;
   const setOpen = onOpenChange ?? setInternalOpen;
 
@@ -59,24 +60,38 @@ export function AdminPanel({
   const leaderboardSessions = useMemo(() => getLeaderboardSessions(sessions), [sessions]);
   const finishedSessions = useMemo(() => getFinishedCompetitionSessions(sessions), [sessions]);
   const playingSessions = competitionSessions.filter((session) => session.status === "playing");
+  const quitSessions = competitionSessions.filter((session) => session.status === "quit");
   const expectedPlayersCount = getExpectedPlayerCount(config);
   const feedbackSessions = competitionSessions.filter((session) => session.feedbackSubmitted);
+  const waitingForLeaderboardCount = config.leaderboardOpen ? 0 : finishedSessions.length;
   const averageScore = getAverageScore(sessions);
   const averageRating = getAverageRating(sessions);
   const creatorPoints = getCreatorPoints(sessions);
 
   useEffect(() => {
-    setPendingPassword(config.adminPassword);
-    setExpectedMode(config.expectedPlayersMode);
-    setExpectedPlayers(String(config.expectedPlayers));
-    setLeaderboardMode(config.leaderboardMode);
-  }, [config]);
+    if (!settingsDirty) {
+      setPendingPassword(config.adminPassword);
+      setExpectedMode(config.expectedPlayersMode);
+      setExpectedPlayers(String(config.expectedPlayers));
+      setLeaderboardMode(config.leaderboardMode);
+    }
+  }, [config, settingsDirty]);
 
   useEffect(() => {
     if (!visible && open) {
       setOpen(false);
     }
   }, [open, setOpen, visible]);
+
+  useEffect(() => {
+    if (!open) {
+      setSettingsDirty(false);
+      setPendingPassword(config.adminPassword);
+      setExpectedMode(config.expectedPlayersMode);
+      setExpectedPlayers(String(config.expectedPlayers));
+      setLeaderboardMode(config.leaderboardMode);
+    }
+  }, [config, open]);
 
   const unlockPanel = () => {
     if (password === config.adminPassword) {
@@ -97,6 +112,7 @@ export function AdminPanel({
         expectedPlayers: Math.max(1, Number(expectedPlayers) || 1),
         leaderboardMode,
       });
+      setSettingsDirty(false);
     } finally {
       setSaving(false);
     }
@@ -183,11 +199,22 @@ export function AdminPanel({
 
                 {activeTab === "dashboard" && (
                   <div className="mt-6 space-y-4">
-                    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                      <StatCard label="Joined" value={competitionSessions.length} />
+                    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+                      <StatCard label="Joined This Round" value={competitionSessions.length} />
                       <StatCard label="Playing Now" value={playingSessions.length} />
-                      <StatCard label="Finished" value={finishedSessions.length} />
-                      <StatCard label="Expected" value={expectedPlayersCount} />
+                      <StatCard label="Finished Total" value={finishedSessions.length} />
+                      <StatCard label="Waiting Leaderboard" value={waitingForLeaderboardCount} />
+                      <StatCard label="Feedback Received" value={feedbackSessions.length} />
+                      <StatCard label="Expected Players" value={expectedPlayersCount} />
+                    </div>
+
+                    <div className="grid gap-4 lg:grid-cols-3">
+                      <StatCard label="Exited Game" value={quitSessions.length} />
+                      <StatCard
+                        label="Leaderboard"
+                        value={config.leaderboardOpen ? "Open" : "Locked"}
+                      />
+                      <StatCard label="Count Mode" value={config.expectedPlayersMode} />
                     </div>
 
                     <div className="rounded-3xl border border-primary/20 bg-card/70 p-5">
@@ -248,7 +275,10 @@ export function AdminPanel({
                           <input
                             type="radio"
                             checked={expectedMode === "automatic"}
-                            onChange={() => setExpectedMode("automatic")}
+                            onChange={() => {
+                              setSettingsDirty(true);
+                              setExpectedMode("automatic");
+                            }}
                           />
                           <div>
                             <div className="font-bold">Automatic players</div>
@@ -261,17 +291,24 @@ export function AdminPanel({
                           <input
                             type="radio"
                             checked={expectedMode === "manual"}
-                            onChange={() => setExpectedMode("manual")}
+                            onChange={() => {
+                              setSettingsDirty(true);
+                              setExpectedMode("manual");
+                            }}
                           />
                           <div className="flex-1">
                             <div className="font-bold">Manual player count</div>
                             <div className="mt-2">
                               <input
                                 value={expectedPlayers}
-                                onChange={(e) => setExpectedPlayers(e.target.value)}
+                                onChange={(e) => {
+                                  setSettingsDirty(true);
+                                  setExpectedPlayers(e.target.value);
+                                }}
+                                disabled={expectedMode !== "manual"}
                                 type="number"
                                 min={1}
-                                className="w-full rounded-xl border bg-background/50 px-3 py-2 outline-none ring-primary focus:ring-2"
+                                className="w-full rounded-xl border bg-background/50 px-3 py-2 outline-none ring-primary focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50"
                               />
                             </div>
                           </div>
@@ -286,7 +323,10 @@ export function AdminPanel({
                       </p>
                       <input
                         value={pendingPassword}
-                        onChange={(e) => setPendingPassword(e.target.value)}
+                        onChange={(e) => {
+                          setSettingsDirty(true);
+                          setPendingPassword(e.target.value);
+                        }}
                         className="mt-4 w-full rounded-xl border bg-background/50 px-3 py-2 outline-none ring-primary focus:ring-2"
                         placeholder="Change admin password"
                       />
@@ -299,7 +339,10 @@ export function AdminPanel({
                             <input
                               type="radio"
                               checked={leaderboardMode === "automatic"}
-                              onChange={() => setLeaderboardMode("automatic")}
+                              onChange={() => {
+                                setSettingsDirty(true);
+                                setLeaderboardMode("automatic");
+                              }}
                             />
                             <div>
                               <div className="font-bold">Automatic leaderboard</div>
@@ -312,7 +355,10 @@ export function AdminPanel({
                             <input
                               type="radio"
                               checked={leaderboardMode === "manual"}
-                              onChange={() => setLeaderboardMode("manual")}
+                              onChange={() => {
+                                setSettingsDirty(true);
+                                setLeaderboardMode("manual");
+                              }}
                             />
                             <div>
                               <div className="font-bold">Manual leaderboard</div>
