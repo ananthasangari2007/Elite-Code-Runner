@@ -9,6 +9,13 @@ type Props = {
 const podiumLabels = ["Champion", "Runner-Up", "Bronze"];
 const podiumHeights = ["h-44 sm:h-64", "h-36 sm:h-52", "h-32 sm:h-44"];
 
+function formatTime(timeMs: number) {
+  const totalSeconds = Math.floor(timeMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = (totalSeconds % 60).toString().padStart(2, "0");
+  return `${minutes}:${seconds}`;
+}
+
 export function EventLeaderboard({ sessions, onBack }: Props) {
   const topThree = [sessions[1], sessions[0], sessions[2]].filter(Boolean) as PlayerSession[];
   const remaining = sessions.slice(3);
@@ -34,6 +41,9 @@ export function EventLeaderboard({ sessions, onBack }: Props) {
       <h2 className="mt-4 text-center text-3xl font-black tracking-[0.16em] text-glow-pink sm:text-5xl">
         LEADERBOARD
       </h2>
+      <p className="mt-3 text-center text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">
+        Ranked by score, fastest time, then accuracy
+      </p>
 
       {sessions.length === 0 ? (
         <div className="mt-8 rounded-3xl border border-dashed border-primary/25 bg-background/25 p-8 text-center text-muted-foreground">
@@ -65,6 +75,9 @@ export function EventLeaderboard({ sessions, onBack }: Props) {
                   <div className="text-sm text-muted-foreground">
                     {session.correctAnswers}/{Math.max(session.answeredCount, 1)} correct |{" "}
                     {session.accuracy}%
+                  </div>
+                  <div className="mt-1 text-xs font-bold uppercase tracking-[0.18em] text-accent">
+                    Time {formatTime(session.timeMs)}
                   </div>
                   <div className="mt-3 text-4xl font-black text-glow-cyan">{session.score}</div>
                   <div
@@ -99,14 +112,14 @@ export function EventLeaderboard({ sessions, onBack }: Props) {
                     <div className="min-w-0 flex-1">
                       <div className="truncate font-bold">{session.name}</div>
                       <div className="text-xs text-muted-foreground">
-                        {session.correctAnswers}/{Math.max(session.answeredCount, 1)} correct |{" "}
-                        {session.accuracy}% accuracy | Best streak {session.bestStreak}
+                        {session.correctAnswers}/{Math.max(session.answeredCount, 1)} correct | Time{" "}
+                        {formatTime(session.timeMs)} | {session.accuracy}% accuracy
                       </div>
                     </div>
                     <div className="col-span-3 border-t border-primary/10 pt-2 text-right sm:col-span-1 sm:border-t-0 sm:pt-0">
                       <div className="text-2xl font-black text-glow-pink">{session.score}</div>
                       <div className="text-xs text-muted-foreground">
-                        {Math.floor(session.timeMs / 1000)}s
+                        Best streak {session.bestStreak}
                       </div>
                     </div>
                   </div>

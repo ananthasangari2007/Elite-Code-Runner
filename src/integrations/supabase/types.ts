@@ -75,6 +75,9 @@ export type Database = {
           avatar_id: number;
           best_streak: number;
           created_at: string;
+          correct_answers: number;
+          exit_reason: string | null;
+          exited_at: string | null;
           feedback_rating: number | null;
           feedback_submitted: boolean;
           feedback_text: string;
@@ -86,7 +89,6 @@ export type Database = {
           status: string;
           time_ms: number;
           updated_at: string;
-          correct_answers: number;
         };
         Insert: {
           accuracy?: number;
@@ -94,6 +96,9 @@ export type Database = {
           avatar_id: number;
           best_streak?: number;
           created_at?: string;
+          correct_answers?: number;
+          exit_reason?: string | null;
+          exited_at?: string | null;
           feedback_rating?: number | null;
           feedback_submitted?: boolean;
           feedback_text?: string;
@@ -105,7 +110,6 @@ export type Database = {
           status?: string;
           time_ms?: number;
           updated_at?: string;
-          correct_answers?: number;
         };
         Update: {
           accuracy?: number;
@@ -113,6 +117,9 @@ export type Database = {
           avatar_id?: number;
           best_streak?: number;
           created_at?: string;
+          correct_answers?: number;
+          exit_reason?: string | null;
+          exited_at?: string | null;
           feedback_rating?: number | null;
           feedback_submitted?: boolean;
           feedback_text?: string;
@@ -124,7 +131,6 @@ export type Database = {
           status?: string;
           time_ms?: number;
           updated_at?: string;
-          correct_answers?: number;
         };
         Relationships: [];
       };

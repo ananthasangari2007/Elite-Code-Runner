@@ -6,9 +6,11 @@ import {
   getAverageScore,
   getCompetitionSessions,
   getCreatorPoints,
+  getExitedCompetitionSessions,
   getExpectedPlayerCount,
   getFinishedCompetitionSessions,
   getLeaderboardSessions,
+  getPlayingCompetitionSessions,
   type AdminConfig,
   type PlayerCountMode,
   type PlayerSession,
@@ -59,11 +61,11 @@ export function AdminPanel({
   const competitionSessions = useMemo(() => getCompetitionSessions(sessions), [sessions]);
   const leaderboardSessions = useMemo(() => getLeaderboardSessions(sessions), [sessions]);
   const finishedSessions = useMemo(() => getFinishedCompetitionSessions(sessions), [sessions]);
-  const playingSessions = competitionSessions.filter((session) => session.status === "playing");
-  const quitSessions = competitionSessions.filter((session) => session.status === "quit");
+  const playingSessions = useMemo(() => getPlayingCompetitionSessions(sessions), [sessions]);
+  const exitedSessions = useMemo(() => getExitedCompetitionSessions(sessions), [sessions]);
   const expectedPlayersCount = getExpectedPlayerCount(config);
   const feedbackSessions = competitionSessions.filter((session) => session.feedbackSubmitted);
-  const waitingForLeaderboardCount = config.leaderboardOpen ? 0 : finishedSessions.length;
+  const waitingForLeaderboardCount = finishedSessions.length;
   const averageScore = getAverageScore(sessions);
   const averageRating = getAverageRating(sessions);
   const creatorPoints = getCreatorPoints(sessions);
@@ -209,7 +211,7 @@ export function AdminPanel({
                     </div>
 
                     <div className="grid gap-4 lg:grid-cols-3">
-                      <StatCard label="Exited Game" value={quitSessions.length} />
+                      <StatCard label="Exited Game" value={exitedSessions.length} />
                       <StatCard
                         label="Leaderboard"
                         value={config.leaderboardOpen ? "Open" : "Locked"}
@@ -243,7 +245,9 @@ export function AdminPanel({
                                   {session.status === "playing"
                                     ? "Currently playing"
                                     : session.status === "finished"
-                                      ? "Finished playing"
+                                      ? session.exitReason
+                                        ? `Finished and left via ${session.exitReason}`
+                                        : "Finished playing"
                                       : "Exited the game"}
                                 </div>
                               </div>

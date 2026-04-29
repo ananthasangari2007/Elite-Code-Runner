@@ -4,6 +4,7 @@ export type PlayMode = "demo" | "competition";
 export type SessionStatus = "playing" | "finished" | "quit";
 export type PlayerCountMode = "automatic" | "manual";
 export type LeaderboardControlMode = "automatic" | "manual";
+export type SessionExitReason = "quit" | "home" | "replay";
 
 export type GameSummary = {
   score: number;
@@ -41,6 +42,8 @@ export type PlayerSession = {
   feedbackRating: number | null;
   feedbackText: string;
   feedbackSubmitted: boolean;
+  exitReason: SessionExitReason | null;
+  exitedAt: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -77,6 +80,8 @@ type SessionRow = {
   feedback_rating: number | null;
   feedback_text: string | null;
   feedback_submitted: boolean | null;
+  exit_reason: SessionExitReason | null;
+  exited_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -150,6 +155,8 @@ function mapSessionRow(row: SessionRow): PlayerSession {
     feedbackRating: row.feedback_rating,
     feedbackText: row.feedback_text ?? "",
     feedbackSubmitted: row.feedback_submitted ?? false,
+    exitReason: row.exit_reason,
+    exitedAt: row.exited_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -172,6 +179,8 @@ function mapSessionToRow(session: PlayerSession): SessionRow {
     feedback_rating: session.feedbackRating,
     feedback_text: session.feedbackText,
     feedback_submitted: session.feedbackSubmitted,
+    exit_reason: session.exitReason,
+    exited_at: session.exitedAt,
     created_at: session.createdAt,
     updated_at: session.updatedAt,
   };
@@ -235,6 +244,8 @@ function readLocalSessions(): PlayerSession[] {
       bestStreak: session.bestStreak ?? 0,
       feedbackText: session.feedbackText ?? "",
       feedbackSubmitted: Boolean(session.feedbackSubmitted),
+      exitReason: session.exitReason ?? null,
+      exitedAt: session.exitedAt ?? null,
     }));
   } catch {
     return [];
@@ -279,11 +290,19 @@ export function getFinishedCompetitionSessions(sessions: PlayerSession[]) {
   return getCompetitionSessions(sessions).filter((session) => session.status === "finished");
 }
 
+export function getPlayingCompetitionSessions(sessions: PlayerSession[]) {
+  return getCompetitionSessions(sessions).filter((session) => session.status === "playing");
+}
+
+export function getExitedCompetitionSessions(sessions: PlayerSession[]) {
+  return getCompetitionSessions(sessions).filter((session) => session.exitReason !== null);
+}
+
 export function getLeaderboardSessions(sessions: PlayerSession[]) {
   return getFinishedCompetitionSessions(sessions).sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;
-    if (b.accuracy !== a.accuracy) return b.accuracy - a.accuracy;
     if (a.timeMs !== b.timeMs) return a.timeMs - b.timeMs;
+    if (b.accuracy !== a.accuracy) return b.accuracy - a.accuracy;
     return a.updatedAt.localeCompare(b.updatedAt);
   });
 }
@@ -446,6 +465,8 @@ export async function createPlayerSession({
         feedback_rating: null,
         feedback_text: "",
         feedback_submitted: false,
+        exit_reason: null,
+        exited_at: null,
         created_at: createdAt,
         updated_at: createdAt,
       };
@@ -478,6 +499,8 @@ export async function createPlayerSession({
         feedbackRating: null,
         feedbackText: "",
         feedbackSubmitted: false,
+        exitReason: null,
+        exitedAt: null,
         createdAt,
         updatedAt: createdAt,
       };
@@ -489,18 +512,71 @@ export async function createPlayerSession({
 }
 
 export async function markPlayerQuit(sessionId: string) {
-  return runWithFallback(
+  await runWithFallback(
     async () => {
+      const timestamp = nowIso();
       const { error } = await supabase
         .from("player_sessions")
-        .update({ status: "quit", updated_at: nowIso() })
+        .update({
+          status: "quit",
+          exit_reason: "quit",
+          exited_at: timestamp,
+          updated_at: timestamp,
+        })
         .eq("id", sessionId);
 
       if (error) throw error;
     },
     async () => {
+      const timestamp = nowIso();
       const sessions: PlayerSession[] = readLocalSessions().map((session) =>
-        session.id === sessionId ? { ...session, status: "quit", updatedAt: nowIso() } : session,
+        session.id === sessionId
+          ? {
+              ...session,
+              status: "quit",
+              exitReason: "quit",
+              exitedAt: timestamp,
+              updatedAt: timestamp,
+            }
+          : session,
+      );
+      writeLocalSessions(sessions);
+    },
+  );
+
+  const config = await ensureAdminConfig();
+  await maybeAutoOpenLeaderboard(config);
+}
+
+export async function markPlayerExited(
+  sessionId: string,
+  exitReason: Exclude<SessionExitReason, "quit">,
+) {
+  return runWithFallback(
+    async () => {
+      const timestamp = nowIso();
+      const { error } = await supabase
+        .from("player_sessions")
+        .update({
+          exit_reason: exitReason,
+          exited_at: timestamp,
+          updated_at: timestamp,
+        })
+        .eq("id", sessionId);
+
+      if (error) throw error;
+    },
+    async () => {
+      const timestamp = nowIso();
+      const sessions = readLocalSessions().map((session) =>
+        session.id === sessionId
+          ? {
+              ...session,
+              exitReason,
+              exitedAt: timestamp,
+              updatedAt: timestamp,
+            }
+          : session,
       );
       writeLocalSessions(sessions);
     },
@@ -511,12 +587,21 @@ async function maybeAutoOpenLeaderboard(config: AdminConfig) {
   const snapshot = await fetchAdminSnapshot();
   const activeConfig = snapshot.config.id === config.id ? snapshot.config : config;
   const finishedCount = getFinishedCompetitionSessions(snapshot.sessions).length;
+  const activePlayers = getPlayingCompetitionSessions(snapshot.sessions).length;
   const expectedPlayers = getExpectedPlayerCount(activeConfig);
+  const resolvedPlayers = getCompetitionSessions(snapshot.sessions).filter(
+    (session) => session.status === "finished" || session.status === "quit",
+  ).length;
+  const autoThresholdReached =
+    activeConfig.expectedPlayersMode === "automatic"
+      ? activePlayers === 0
+      : resolvedPlayers >= expectedPlayers;
 
   if (
     activeConfig.leaderboardMode === "automatic" &&
     !activeConfig.leaderboardOpen &&
-    finishedCount >= expectedPlayers
+    finishedCount > 0 &&
+    autoThresholdReached
   ) {
     await saveAdminConfig({ leaderboardOpen: true });
   }

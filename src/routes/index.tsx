@@ -1,10 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AdminPanel } from "@/components/AdminPanel";
 import { GameCanvas } from "@/components/GameCanvas";
 import { GameOver } from "@/components/GameOver";
 import { PlayerSetup } from "@/components/PlayerSetup";
 import { RulesScreen } from "@/components/RulesScreen";
+import { supabase } from "@/integrations/supabase/client";
 import {
   createPlayerSession,
   ensureAdminConfig,
@@ -13,6 +14,7 @@ import {
   forceOpenLeaderboard,
   closeLeaderboard,
   markPlayerQuit,
+  markPlayerExited,
   saveAdminConfig,
   startNewRound,
   submitPlayerFeedback,
@@ -50,20 +52,26 @@ function Index() {
   const [result, setResult] = useState<GameSummary | null>(null);
   const [demoPlaysUsed, setDemoPlaysUsed] = useState(0);
   const [adminConfig, setAdminConfig] = useState<AdminConfig>(() => getLocalAdminConfig());
-  const [sessions, setSessions] = useState<PlayerSession[]>(() => getLocalSessions());
+  const [sessions, setSessions] = useState<PlayerSession[]>(() => {
+    const config = getLocalAdminConfig();
+    return getLocalSessions().filter((session) => session.roundId === config.currentRoundId);
+  });
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [adminPanelOpen, setAdminPanelOpen] = useState(false);
 
-  const refreshSnapshot = async () => {
+  const refreshSnapshot = useCallback(async () => {
     try {
       const snapshot = await fetchAdminSnapshot();
       setAdminConfig(snapshot.config);
       setSessions(snapshot.sessions);
     } catch {
       setAdminConfig(getLocalAdminConfig());
-      setSessions(getLocalSessions());
+      const config = getLocalAdminConfig();
+      setSessions(
+        getLocalSessions().filter((session) => session.roundId === config.currentRoundId),
+      );
     }
-  };
+  }, []);
 
   useEffect(() => {
     const storedDemoPlays =
@@ -85,6 +93,22 @@ function Index() {
     };
 
     void boot();
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    try {
+      channel = supabase
+        .channel("elite-live-round")
+        .on("postgres_changes", { event: "*", schema: "public", table: "app_control" }, () => {
+          void refreshSnapshot();
+        })
+        .on("postgres_changes", { event: "*", schema: "public", table: "player_sessions" }, () => {
+          void refreshSnapshot();
+        })
+        .subscribe();
+    } catch {
+      channel = null;
+    }
+
     const intervalId = window.setInterval(() => {
       void refreshSnapshot();
     }, 4000);
@@ -92,8 +116,11 @@ function Index() {
     return () => {
       active = false;
       window.clearInterval(intervalId);
+      if (channel) {
+        void supabase.removeChannel(channel);
+      }
     };
-  }, []);
+  }, [refreshSnapshot]);
 
   useEffect(() => {
     if (phase !== "setup" && adminPanelOpen) {
@@ -152,13 +179,28 @@ function Index() {
     setPhase("setup");
   };
 
+  const syncResultExit = useCallback(
+    (exitReason: "home" | "replay") => {
+      if (mode !== "competition" || !currentSessionId) return;
+
+      const sessionId = currentSessionId;
+      void (async () => {
+        await markPlayerExited(sessionId, exitReason);
+        await refreshSnapshot();
+      })();
+    },
+    [currentSessionId, mode, refreshSnapshot],
+  );
+
   const goHome = () => {
+    syncResultExit("home");
     setCurrentSessionId(null);
     setResult(null);
     setPhase("setup");
   };
 
   const playAgain = () => {
+    syncResultExit("replay");
     setResult(null);
     setCurrentSessionId(null);
     setPhase("rules");
