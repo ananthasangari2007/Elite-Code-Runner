@@ -494,7 +494,7 @@ export async function markPlayerQuit(sessionId: string) {
       if (error) throw error;
     },
     async () => {
-      const sessions = readLocalSessions().map((session) =>
+      const sessions: PlayerSession[] = readLocalSessions().map((session) =>
         session.id === sessionId ? { ...session, status: "quit", updatedAt: nowIso() } : session,
       );
       writeLocalSessions(sessions);
@@ -537,7 +537,7 @@ export async function finishPlayerSession(sessionId: string, summary: GameSummar
       if (error) throw error;
     },
     async () => {
-      const sessions = readLocalSessions().map((session) =>
+      const sessions: PlayerSession[] = readLocalSessions().map((session) =>
         session.id === sessionId
           ? {
               ...session,

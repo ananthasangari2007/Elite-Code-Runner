@@ -41,7 +41,6 @@ export const Route = createFileRoute("/")({
 type Phase = "setup" | "rules" | "playing" | "over";
 
 const DEMO_PLAYS_KEY = "elite-demo-plays-used";
-const HOST_PANEL_KEY = "elite-host-panel-enabled";
 
 function Index() {
   const [phase, setPhase] = useState<Phase>("setup");
@@ -53,7 +52,7 @@ function Index() {
   const [adminConfig, setAdminConfig] = useState<AdminConfig>(() => getLocalAdminConfig());
   const [sessions, setSessions] = useState<PlayerSession[]>(() => getLocalSessions());
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
-  const [hostPanelEnabled, setHostPanelEnabled] = useState(false);
+  const [adminPanelOpen, setAdminPanelOpen] = useState(false);
 
   const refreshSnapshot = async () => {
     try {
@@ -70,28 +69,6 @@ function Index() {
     const storedDemoPlays =
       typeof window === "undefined" ? 0 : Number(localStorage.getItem(DEMO_PLAYS_KEY) || "0");
     setDemoPlaysUsed(storedDemoPlays);
-
-    if (typeof window !== "undefined") {
-      const searchParams = new URLSearchParams(window.location.search);
-      const hostParam = searchParams.get("host");
-
-      if (hostParam === "1") {
-        localStorage.setItem(HOST_PANEL_KEY, "true");
-        setHostPanelEnabled(true);
-      } else if (hostParam === "0") {
-        localStorage.removeItem(HOST_PANEL_KEY);
-        setHostPanelEnabled(false);
-      } else {
-        setHostPanelEnabled(localStorage.getItem(HOST_PANEL_KEY) === "true");
-      }
-
-      if (hostParam === "1" || hostParam === "0") {
-        searchParams.delete("host");
-        const nextSearch = searchParams.toString();
-        const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}${window.location.hash}`;
-        window.history.replaceState({}, "", nextUrl);
-      }
-    }
 
     let active = true;
     const boot = async () => {
@@ -118,6 +95,12 @@ function Index() {
     };
   }, []);
 
+  useEffect(() => {
+    if (phase !== "setup" && adminPanelOpen) {
+      setAdminPanelOpen(false);
+    }
+  }, [adminPanelOpen, phase]);
+
   const incrementDemoPlays = () => {
     const next = demoPlaysUsed + 1;
     setDemoPlaysUsed(next);
@@ -125,6 +108,7 @@ function Index() {
   };
 
   const enterMode = (playerName: string, selectedAvatarId: number, selectedMode: PlayMode) => {
+    setAdminPanelOpen(false);
     setName(playerName);
     setAvatarId(selectedAvatarId);
     setMode(selectedMode);
@@ -217,7 +201,13 @@ function Index() {
 
   return (
     <>
-      {phase === "setup" && <PlayerSetup demoPlaysUsed={demoPlaysUsed} onStart={enterMode} />}
+      {phase === "setup" && (
+        <PlayerSetup
+          demoPlaysUsed={demoPlaysUsed}
+          onOpenAdmin={() => setAdminPanelOpen(true)}
+          onStart={enterMode}
+        />
+      )}
 
       {phase === "rules" && (
         <RulesScreen
@@ -254,7 +244,9 @@ function Index() {
       <AdminPanel
         config={adminConfig}
         sessions={sessions}
-        visible={phase === "setup" && hostPanelEnabled}
+        visible={phase === "setup"}
+        open={adminPanelOpen}
+        onOpenChange={setAdminPanelOpen}
         onSaveSettings={handleSaveSettings}
         onForceLeaderboard={handleForceLeaderboard}
         onCloseLeaderboard={handleCloseLeaderboard}

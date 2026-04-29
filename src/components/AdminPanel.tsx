@@ -19,6 +19,8 @@ type Props = {
   config: AdminConfig;
   sessions: PlayerSession[];
   visible?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   onSaveSettings: (updates: Partial<AdminConfig>) => Promise<void>;
   onForceLeaderboard: () => Promise<void>;
   onCloseLeaderboard: () => Promise<void>;
@@ -31,12 +33,14 @@ export function AdminPanel({
   config,
   sessions,
   visible = true,
+  open: openProp,
+  onOpenChange,
   onSaveSettings,
   onForceLeaderboard,
   onCloseLeaderboard,
   onStartNewRound,
 }: Props) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
   const [unlocked, setUnlocked] = useState(false);
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -48,6 +52,8 @@ export function AdminPanel({
     config.leaderboardMode,
   );
   const [saving, setSaving] = useState(false);
+  const open = openProp ?? internalOpen;
+  const setOpen = onOpenChange ?? setInternalOpen;
 
   const competitionSessions = useMemo(() => getCompetitionSessions(sessions), [sessions]);
   const leaderboardSessions = useMemo(() => getLeaderboardSessions(sessions), [sessions]);
@@ -65,6 +71,12 @@ export function AdminPanel({
     setExpectedPlayers(String(config.expectedPlayers));
     setLeaderboardMode(config.leaderboardMode);
   }, [config]);
+
+  useEffect(() => {
+    if (!visible && open) {
+      setOpen(false);
+    }
+  }, [open, setOpen, visible]);
 
   const unlockPanel = () => {
     if (password === config.adminPassword) {
