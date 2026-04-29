@@ -178,10 +178,9 @@ export function GameCanvas({ playerName, avatarId, onEnd, onQuit }: Props) {
   }, [moveLane]);
 
   useEffect(() => {
-    if (phase === "playing") startMusic();
-  }, [phase]);
-
-  useEffect(() => () => stopMusic(), []);
+    startMusic();
+    return () => stopMusic();
+  }, []);
 
   const endGame = useCallback(
     (finalScore: number) => {

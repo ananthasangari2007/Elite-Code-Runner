@@ -1,4 +1,5 @@
 import { QUESTIONS_PER_RUN } from "@/game/config";
+import { startMusic } from "@/game/audio";
 import type { PlayMode } from "@/game/store";
 
 type Props = {
@@ -39,6 +40,10 @@ const rules = [
 
 export function RulesScreen({ mode, onStart, onBack }: Props) {
   const isDemo = mode === "demo";
+  const handleContinue = () => {
+    startMusic();
+    onStart();
+  };
 
   return (
     <div className="min-h-dvh w-full px-3 py-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-4 sm:py-12">
@@ -80,7 +85,7 @@ export function RulesScreen({ mode, onStart, onBack }: Props) {
             Back
           </button>
           <button
-            onClick={onStart}
+            onClick={handleContinue}
             className="flex-[2] rounded-xl bg-accent py-3 text-sm font-bold uppercase tracking-widest text-accent-foreground transition-transform hover:scale-[1.02] sm:text-base"
           >
             Continue

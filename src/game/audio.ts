@@ -1,12 +1,9 @@
-// Lightweight WebAudio sound effects — no external assets needed.
+// Lightweight WebAudio sound effects with a looping gameplay song.
 let ctx: AudioContext | null = null;
 let muted = false;
-let musicNodes: {
-  osc: OscillatorNode;
-  gain: GainNode;
-  lfo: OscillatorNode;
-  lfoGain: GainNode;
-} | null = null;
+let musicElement: HTMLAudioElement | null = null;
+
+const MUSIC_SRC = "/audio/subway-surfers.mpeg";
 
 function ac(): AudioContext {
   if (!ctx)
@@ -17,9 +14,21 @@ function ac(): AudioContext {
   return ctx;
 }
 
+function getMusicElement() {
+  if (!musicElement) {
+    musicElement = new Audio(MUSIC_SRC);
+    musicElement.loop = true;
+    musicElement.preload = "auto";
+    musicElement.volume = 0.45;
+    musicElement.muted = muted;
+  }
+
+  return musicElement;
+}
+
 export function setMuted(m: boolean) {
   muted = m;
-  if (musicNodes) musicNodes.gain.gain.value = muted ? 0 : 0.04;
+  if (musicElement) musicElement.muted = muted;
 }
 export function isMuted() {
   return muted;
@@ -62,35 +71,21 @@ export const sfx = {
 };
 
 export function startMusic() {
-  if (musicNodes) return;
   try {
-    const a = ac();
-    const osc = a.createOscillator();
-    const gain = a.createGain();
-    const lfo = a.createOscillator();
-    const lfoGain = a.createGain();
-    osc.type = "triangle";
-    osc.frequency.value = 110;
-    gain.gain.value = muted ? 0 : 0.04;
-    lfo.frequency.value = 0.6;
-    lfoGain.gain.value = 30;
-    lfo.connect(lfoGain).connect(osc.frequency);
-    osc.connect(gain).connect(a.destination);
-    osc.start();
-    lfo.start();
-    musicNodes = { osc, gain, lfo, lfoGain };
+    const el = getMusicElement();
+    el.muted = muted;
+    void el.play();
   } catch {
     /* ignore */
   }
 }
 
 export function stopMusic() {
-  if (!musicNodes) return;
+  if (!musicElement) return;
   try {
-    musicNodes.osc.stop();
-    musicNodes.lfo.stop();
+    musicElement.pause();
+    musicElement.currentTime = 0;
   } catch {
     /* ignore */
   }
-  musicNodes = null;
 }
