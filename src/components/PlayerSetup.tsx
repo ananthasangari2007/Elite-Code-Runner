@@ -1,17 +1,15 @@
 import { useEffect, useState } from "react";
-import { Shield } from "lucide-react";
 import { AVATARS } from "@/game/avatars";
 import type { PlayMode } from "@/game/store";
 
 type Props = {
   demoPlaysUsed: number;
-  onOpenAdmin: () => void;
   onStart: (name: string, avatarId: number, mode: PlayMode) => void;
 };
 
 const MAX_DEMO_PLAYS = 3;
 
-export function PlayerSetup({ demoPlaysUsed, onOpenAdmin, onStart }: Props) {
+export function PlayerSetup({ demoPlaysUsed, onStart }: Props) {
   const [name, setName] = useState("");
   const [selected, setSelected] = useState<number>(0);
 
@@ -49,16 +47,6 @@ export function PlayerSetup({ demoPlaysUsed, onOpenAdmin, onStart }: Props) {
         </p>
 
         <div className="mt-5 rounded-2xl border bg-card p-4 shadow-2xl sm:mt-8 sm:p-6">
-          <div className="flex justify-end">
-            <button
-              onClick={onOpenAdmin}
-              className="inline-flex items-center gap-2 rounded-full border border-primary/35 bg-primary/10 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-primary transition hover:scale-[1.02] hover:bg-primary/15"
-            >
-              <Shield className="h-4 w-4" />
-              Admin Panel
-            </button>
-          </div>
-
           <label className="block text-xs font-semibold uppercase tracking-wider text-primary sm:text-sm">
             Your Name
           </label>

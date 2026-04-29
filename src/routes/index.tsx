@@ -201,13 +201,7 @@ function Index() {
 
   return (
     <>
-      {phase === "setup" && (
-        <PlayerSetup
-          demoPlaysUsed={demoPlaysUsed}
-          onOpenAdmin={() => setAdminPanelOpen(true)}
-          onStart={enterMode}
-        />
-      )}
+      {phase === "setup" && <PlayerSetup demoPlaysUsed={demoPlaysUsed} onStart={enterMode} />}
 
       {phase === "rules" && (
         <RulesScreen
