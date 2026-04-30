@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { sfx, startMusic, stopMusic, setMuted, isMuted } from "@/game/audio";
 import { AVATARS } from "@/game/avatars";
 import { QUESTIONS_PER_RUN } from "@/game/config";
-import { QUESTIONS } from "@/game/questions";
+import type { Question } from "@/game/questions";
 import type { GameSummary } from "@/game/store";
 import { Countdown } from "./Countdown";
 import { QuestionPopup } from "./QuestionPopup";
@@ -27,12 +27,13 @@ type Popup = { id: number; text: string; color: string };
 type Props = {
   playerName: string;
   avatarId: number;
+  questions: Question[];
   onEnd: (summary: GameSummary) => void;
   onQuit: () => void;
 };
 
-function shuffleQuestions() {
-  const order = Array.from({ length: QUESTIONS.length }, (_, index) => index);
+function shuffleQuestionIndexes(length: number) {
+  const order = Array.from({ length }, (_, index) => index);
 
   for (let i = order.length - 1; i > 0; i -= 1) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -42,9 +43,10 @@ function shuffleQuestions() {
   return order;
 }
 
-export function GameCanvas({ playerName, avatarId, onEnd, onQuit }: Props) {
+export function GameCanvas({ playerName, avatarId, questions, onEnd, onQuit }: Props) {
   const avatar = AVATARS[avatarId];
   const trackRef = useRef<HTMLDivElement>(null);
+  const totalQuestions = Math.min(QUESTIONS_PER_RUN, questions.length);
 
   const [phase, setPhase] = useState<"countdown" | "playing" | "paused" | "question">("countdown");
   const [lane, setLane] = useState(1);
@@ -68,7 +70,7 @@ export function GameCanvas({ playerName, avatarId, onEnd, onQuit }: Props) {
   const correctAnswersRef = useRef(correctAnswers);
   const bestStreakRef = useRef(bestStreak);
   const currentStreakRef = useRef(0);
-  const queueRef = useRef<number[]>(shuffleQuestions());
+  const queueRef = useRef<number[]>(shuffleQuestionIndexes(totalQuestions));
   const currentQRef = useRef<{ qIndex: number; objId: number } | null>(null);
 
   const phaseRef = useRef(phase);
@@ -83,22 +85,25 @@ export function GameCanvas({ playerName, avatarId, onEnd, onQuit }: Props) {
   bestStreakRef.current = bestStreak;
   currentQRef.current = currentQ;
 
-  const refillQueueIfNeeded = useCallback((currentObjects: GameObject[]) => {
-    if (queueRef.current.length > 0 || questionsAskedRef.current >= QUESTIONS_PER_RUN) return;
+  const refillQueueIfNeeded = useCallback(
+    (currentObjects: GameObject[]) => {
+      if (queueRef.current.length > 0 || questionsAskedRef.current >= totalQuestions) return;
 
-    const blocked = new Set(currentObjects.map((obj) => obj.qIndex));
-    if (currentQRef.current) blocked.add(currentQRef.current.qIndex);
+      const blocked = new Set(currentObjects.map((obj) => obj.qIndex));
+      if (currentQRef.current) blocked.add(currentQRef.current.qIndex);
 
-    const remaining = Array.from({ length: QUESTIONS.length }, (_, index) => index).filter(
-      (index) => !answeredQ.current.has(index) && !blocked.has(index),
-    );
+      const remaining = Array.from({ length: totalQuestions }, (_, index) => index).filter(
+        (index) => !answeredQ.current.has(index) && !blocked.has(index),
+      );
 
-    if (remaining.length === 0) return;
-    queueRef.current = remaining;
-  }, []);
+      if (remaining.length === 0) return;
+      queueRef.current = remaining;
+    },
+    [totalQuestions],
+  );
 
   const spawnQuestionObject = useCallback(() => {
-    if (questionsAskedRef.current >= QUESTIONS_PER_RUN) return;
+    if (questionsAskedRef.current >= totalQuestions) return;
 
     setObjects((currentObjects) => {
       refillQueueIfNeeded(currentObjects);
@@ -112,7 +117,7 @@ export function GameCanvas({ playerName, avatarId, onEnd, onQuit }: Props) {
 
       return [...currentObjects, { id, lane: Math.floor(Math.random() * LANES), y: -72, qIndex }];
     });
-  }, [refillQueueIfNeeded]);
+  }, [refillQueueIfNeeded, totalQuestions]);
 
   const moveLane = useCallback((dir: -1 | 1) => {
     if (phaseRef.current !== "playing") return;
@@ -213,7 +218,7 @@ export function GameCanvas({ playerName, avatarId, onEnd, onQuit }: Props) {
   }, [phase, spawnQuestionObject]);
 
   useEffect(() => {
-    if (phase !== "playing" || currentQ || questionsAsked >= QUESTIONS_PER_RUN) return;
+    if (phase !== "playing" || currentQ || questionsAsked >= totalQuestions) return;
     if (objects.length > 0) return;
 
     const timeoutId = window.setTimeout(() => {
@@ -221,7 +226,7 @@ export function GameCanvas({ playerName, avatarId, onEnd, onQuit }: Props) {
     }, 250);
 
     return () => window.clearTimeout(timeoutId);
-  }, [phase, currentQ, questionsAsked, objects.length, spawnQuestionObject]);
+  }, [phase, currentQ, questionsAsked, objects.length, spawnQuestionObject, totalQuestions]);
 
   useEffect(() => {
     if (phase !== "playing") {
@@ -305,7 +310,7 @@ export function GameCanvas({ playerName, avatarId, onEnd, onQuit }: Props) {
   const handleAnswer = (idx: number) => {
     if (!currentQ) return;
 
-    const q = QUESTIONS[currentQ.qIndex];
+    const q = questions[currentQ.qIndex];
     const correct = idx === q.answer;
     const newAsked = questionsAsked + 1;
     answeredQ.current.add(currentQ.qIndex);
@@ -340,7 +345,7 @@ export function GameCanvas({ playerName, avatarId, onEnd, onQuit }: Props) {
     setLives(newLives);
     setCurrentQ(null);
 
-    if (newLives <= 0 || newAsked >= QUESTIONS_PER_RUN) {
+    if (newLives <= 0 || newAsked >= totalQuestions) {
       endGame(newScore);
       return;
     }
@@ -401,7 +406,7 @@ export function GameCanvas({ playerName, avatarId, onEnd, onQuit }: Props) {
             <div className="text-center">
               <div className="text-[9px] uppercase text-muted-foreground sm:text-xs">Q</div>
               <div className="text-base leading-tight font-black text-glow-yellow sm:text-2xl">
-                {questionsAsked}/{QUESTIONS_PER_RUN}
+                {questionsAsked}/{totalQuestions}
               </div>
             </div>
 
@@ -537,11 +542,11 @@ export function GameCanvas({ playerName, avatarId, onEnd, onQuit }: Props) {
         </div>
       )}
 
-      {phase === "question" && currentQ && (
+      {phase === "question" && currentQ && questions[currentQ.qIndex] && (
         <QuestionPopup
-          question={QUESTIONS[currentQ.qIndex]}
+          question={questions[currentQ.qIndex]}
           index={questionsAsked}
-          total={QUESTIONS_PER_RUN}
+          total={totalQuestions}
           onAnswer={handleAnswer}
         />
       )}

@@ -132,7 +132,8 @@ export function PlayerSetup({ demoPlaysUsed, onStart }: Props) {
                   Demo Play
                 </div>
                 <div className="mt-2 text-sm text-muted-foreground">
-                  Practice the full game flow. Demo results never open the event leaderboard.
+                  Practice with a separate 10-question demo set. Demo results never open the event
+                  leaderboard.
                 </div>
               </button>
 

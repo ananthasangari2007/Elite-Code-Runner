@@ -3,8 +3,18 @@ import { useCallback, useEffect, useState } from "react";
 import { AdminPanel } from "@/components/AdminPanel";
 import { GameCanvas } from "@/components/GameCanvas";
 import { GameOver } from "@/components/GameOver";
+import { LevelSelectScreen } from "@/components/LevelSelectScreen";
 import { PlayerSetup } from "@/components/PlayerSetup";
 import { RulesScreen } from "@/components/RulesScreen";
+import {
+  getCategoryCompletionMap,
+  getDemoQuestionSet,
+  getQuestionSet,
+  markDifficultyComplete,
+  type CategoryCompletionMap,
+  type CategoryId,
+  type DifficultyId,
+} from "@/game/questions";
 import { supabase } from "@/integrations/supabase/client";
 import {
   createPlayerSession,
@@ -40,7 +50,7 @@ export const Route = createFileRoute("/")({
   }),
 });
 
-type Phase = "setup" | "rules" | "playing" | "over";
+type Phase = "setup" | "levels" | "rules" | "playing" | "over";
 
 const DEMO_PLAYS_KEY = "elite-demo-plays-used";
 
@@ -49,6 +59,11 @@ function Index() {
   const [name, setName] = useState("");
   const [avatarId, setAvatarId] = useState(0);
   const [mode, setMode] = useState<PlayMode>("competition");
+  const [selectedCategory, setSelectedCategory] = useState<CategoryId | null>(null);
+  const [selectedDifficulty, setSelectedDifficulty] = useState<DifficultyId | null>(null);
+  const [completionMap, setCompletionMap] = useState<CategoryCompletionMap>(() =>
+    getCategoryCompletionMap(),
+  );
   const [result, setResult] = useState<GameSummary | null>(null);
   const [demoPlaysUsed, setDemoPlaysUsed] = useState(0);
   const [adminConfig, setAdminConfig] = useState<AdminConfig>(() => getLocalAdminConfig());
@@ -77,6 +92,7 @@ function Index() {
     const storedDemoPlays =
       typeof window === "undefined" ? 0 : Number(localStorage.getItem(DEMO_PLAYS_KEY) || "0");
     setDemoPlaysUsed(storedDemoPlays);
+    setCompletionMap(getCategoryCompletionMap());
 
     let active = true;
     const boot = async () => {
@@ -134,16 +150,38 @@ function Index() {
     localStorage.setItem(DEMO_PLAYS_KEY, String(next));
   };
 
+  const clearRunSelection = () => {
+    setSelectedCategory(null);
+    setSelectedDifficulty(null);
+  };
+
+  const selectedQuestions =
+    mode === "demo"
+      ? getDemoQuestionSet()
+      : selectedCategory && selectedDifficulty
+        ? getQuestionSet(selectedCategory, selectedDifficulty)
+        : [];
+
   const enterMode = (playerName: string, selectedAvatarId: number, selectedMode: PlayMode) => {
     setAdminPanelOpen(false);
+    clearRunSelection();
+    setCurrentSessionId(null);
+    setResult(null);
     setName(playerName);
     setAvatarId(selectedAvatarId);
     setMode(selectedMode);
+    setPhase(selectedMode === "demo" ? "rules" : "levels");
+  };
+
+  const handleSelectRun = (categoryId: CategoryId, difficultyId: DifficultyId) => {
+    setSelectedCategory(categoryId);
+    setSelectedDifficulty(difficultyId);
     setPhase("rules");
   };
 
   const startGameplay = async () => {
     if (mode === "demo") {
+      if (selectedQuestions.length === 0) return;
       if (demoPlaysUsed >= 3) {
         setPhase("setup");
         return;
@@ -154,6 +192,8 @@ function Index() {
       return;
     }
 
+    if (!selectedCategory || !selectedDifficulty || selectedQuestions.length === 0) return;
+
     const session = await createPlayerSession({ name, avatarId, mode });
     setCurrentSessionId(session?.id ?? null);
     await refreshSnapshot();
@@ -161,6 +201,14 @@ function Index() {
   };
 
   const finishGameplay = async (summary: GameSummary) => {
+    if (
+      selectedCategory &&
+      selectedDifficulty &&
+      selectedQuestions.length > 0 &&
+      summary.answeredCount >= selectedQuestions.length
+    ) {
+      setCompletionMap(markDifficultyComplete(selectedCategory, selectedDifficulty));
+    }
     setResult(summary);
     setPhase("over");
   };
@@ -181,6 +229,7 @@ function Index() {
     }
     setCurrentSessionId(null);
     setResult(null);
+    clearRunSelection();
     setPhase("setup");
   };
 
@@ -201,6 +250,7 @@ function Index() {
     syncResultExit("home");
     setCurrentSessionId(null);
     setResult(null);
+    clearRunSelection();
     setPhase("setup");
   };
 
@@ -208,7 +258,13 @@ function Index() {
     syncResultExit("replay");
     setResult(null);
     setCurrentSessionId(null);
-    setPhase("rules");
+    if (mode === "demo") {
+      setPhase("rules");
+      return;
+    }
+
+    clearRunSelection();
+    setPhase("levels");
   };
 
   const handleSubmitFeedback = async (rating: number, feedback: string) => {
@@ -242,6 +298,7 @@ function Index() {
     await startNewRound();
     setCurrentSessionId(null);
     setResult(null);
+    clearRunSelection();
     setPhase("setup");
     await refreshSnapshot();
   };
@@ -250,11 +307,38 @@ function Index() {
     <>
       {phase === "setup" && <PlayerSetup demoPlaysUsed={demoPlaysUsed} onStart={enterMode} />}
 
+      {phase === "levels" && (
+        <LevelSelectScreen
+          completionMap={completionMap}
+          selectedCategory={selectedCategory}
+          selectedDifficulty={selectedDifficulty}
+          onSelectCategory={(categoryId) => {
+            setSelectedCategory(categoryId);
+            setSelectedDifficulty(null);
+          }}
+          onSelectDifficulty={handleSelectRun}
+          onBack={() => {
+            clearRunSelection();
+            setPhase("setup");
+          }}
+        />
+      )}
+
       {phase === "rules" && (
         <RulesScreen
           mode={mode}
+          selectedCategory={selectedCategory}
+          selectedDifficulty={selectedDifficulty}
           onStart={() => void startGameplay()}
-          onBack={() => setPhase("setup")}
+          onBack={() => {
+            if (mode === "demo") {
+              clearRunSelection();
+              setPhase("setup");
+              return;
+            }
+
+            setPhase("levels");
+          }}
         />
       )}
 
@@ -262,6 +346,7 @@ function Index() {
         <GameCanvas
           playerName={name}
           avatarId={avatarId}
+          questions={selectedQuestions}
           onEnd={finishGameplay}
           onQuit={quitGameplay}
         />
