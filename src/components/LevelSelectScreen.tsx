@@ -162,6 +162,24 @@ const ROADMAP_REWARD_PREVIEWS: Record<CategoryId, string> = {
   functions: "+200 XP and a treasury key",
 };
 
+const DASHBOARD_STORY_MESSAGES: Record<CategoryId, string> = {
+  variables: "The adventure begins! Explore variables and conditionals to power the train.",
+  loops: "You mastered variables! The train is steaming ahead toward looping tunnels.",
+  arrays: "Loop power is unlocked! The train heads into the array canyon.",
+  strings: "Array paths are clear. String functions are lighting the way.",
+  functions: "Final stretch! Functions are the key to the treasure cave.",
+};
+
+const DESKTOP_STAGE_POSITIONS = [
+  { left: "6%", top: "30%" },
+  { left: "30%", top: "18%" },
+  { left: "54%", top: "24%" },
+  { left: "22%", top: "62%" },
+  { left: "48%", top: "70%" },
+];
+
+const DESKTOP_TREASURE_POSITION = { left: "78%", top: "70%" };
+
 const TREASURE_COINS = [
   "\uD83E\uDE99",
   "\uD83D\uDCB0",
@@ -384,103 +402,56 @@ export function LevelSelectScreen({
               </div>
             </div>
 
-            <div className="relative mt-6 overflow-hidden rounded-[1.8rem] border border-white/8 bg-[radial-gradient(circle_at_50%_12%,rgba(34,211,238,0.08),transparent_24%),radial-gradient(circle_at_18%_82%,rgba(64,245,154,0.1),transparent_18%),radial-gradient(circle_at_82%_72%,rgba(255,79,188,0.1),transparent_18%),rgba(5,8,16,0.86)] px-4 py-4 sm:px-6 sm:py-6">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,rgba(255,255,255,0.02),transparent_35%)]" />
+            <div className="relative mt-6 overflow-hidden rounded-[1.8rem] border border-white/8 bg-[linear-gradient(90deg,rgba(10,18,36,0.96),rgba(5,7,17,0.98))] px-4 py-4 sm:px-6 sm:py-6">
+              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_12%,rgba(59,130,246,0.12),transparent_24%),radial-gradient(circle_at_18%_82%,rgba(34,197,94,0.1),transparent_18%),radial-gradient(circle_at_82%_72%,rgba(249,115,22,0.08),transparent_18%)]" />
+              <div className="pointer-events-none absolute left-10 top-8 h-28 w-28 rounded-full bg-slate-900/50 blur-3xl" />
+              <div className="pointer-events-none absolute right-6 top-14 h-32 w-32 rounded-full bg-[#0f766e]/25 blur-3xl" />
+              <div className="pointer-events-none absolute left-28 bottom-10 h-24 w-24 rounded-full bg-[#3b82f6]/15 blur-3xl" />
 
               <div className="relative z-10">
-                <div className="flex flex-col gap-3 border-b border-white/8 pb-4 lg:flex-row lg:items-center lg:justify-between">
-                  <div className="flex flex-wrap gap-2">
-                    <div className="rounded-full border border-cyan-300/18 bg-cyan-400/8 px-3 py-2 text-xs font-black uppercase tracking-[0.18em] text-cyan-100">
-                      Start at Level 1
+                <div className="flex flex-col gap-3 rounded-[1.5rem] border border-white/10 bg-slate-950/80 p-4 text-slate-200 shadow-[0_0_26px_rgba(15,23,42,0.3)] sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="text-[11px] font-black uppercase tracking-[0.28em] text-cyan-300">
+                      Adventure Map
                     </div>
-                    <div className="rounded-full border border-emerald-300/18 bg-emerald-400/8 px-3 py-2 text-[11px] font-black uppercase tracking-[0.14em] text-emerald-100 sm:text-xs sm:tracking-[0.18em]">
-                      {isMobile
-                        ? `${completedLevels}/5 Cleared`
-                        : `${completedLevels}/5 Levels Cleared`}
-                    </div>
-                    <div className="rounded-full border border-amber-300/18 bg-amber-400/8 px-3 py-2 text-[11px] font-black uppercase tracking-[0.14em] text-amber-100 sm:text-xs sm:tracking-[0.18em]">
-                      {isMobile ? "Treasure After 5" : "Treasury After Level 5"}
-                    </div>
+                    <h3 className="mt-3 text-2xl font-black text-white sm:text-3xl">
+                      C Programming Adventure
+                    </h3>
+                    <p className="mt-2 max-w-xl text-sm leading-6 text-slate-400">
+                      {DASHBOARD_STORY_MESSAGES[activeCategory]}
+                    </p>
                   </div>
 
-                  <div className="flex min-w-0 items-start gap-2 text-sm text-slate-300">
-                    <Sparkles className="h-4 w-4 animate-road-bob text-amber-300" />
-                    <span className="leading-relaxed">
-                      {isMobile
-                        ? "Scroll through levels in a vertical zig-zag pattern - optimized for mobile."
-                        : "The roadmap is displayed vertically in a zig-zag flow for better mobile responsiveness."}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="mt-5 space-y-4 px-0 sm:px-0">
-                  <div className="space-y-6">
-                    {CATEGORY_SEQUENCE.map((categoryId, index) => {
-                      const unlocked = isCategoryUnlocked(completionMap, categoryId);
-                      const mastered = isCategoryMastered(completionMap, categoryId);
-                      const highlighted =
-                        selectedCategory != null
-                          ? selectedCategory === categoryId
-                          : activeCategory === categoryId;
-                      const completedCount = getCategoryCompletionCount(
-                        completionMap,
-                        categoryId,
-                      );
-                      const isOddIndex = index % 2 === 1;
-
-                      return (
-                        <div
-                          key={categoryId}
-                          className={cn(
-                            "flex w-full items-center gap-4",
-                            isOddIndex ? "flex-row-reverse justify-end" : "flex-row justify-start"
-                          )}
-                        >
-                          <div className={cn("flex-1", isOddIndex ? "text-right" : "text-left")}>
-                            <div className="text-sm text-slate-400 mb-1">
-                              Level {getCategoryLevelNumber(categoryId)}
-                            </div>
-                            <div className="text-base font-semibold text-white mb-2">
-                              {getCategoryLabel(categoryId)}
-                            </div>
-                            <div className="text-xs text-slate-500">
-                              {ROADMAP_PREVIEW_LABELS[categoryId]}
-                            </div>
-                          </div>
-                          <div className="flex-shrink-0">
-                            <RoadmapLevelStop
-                              categoryId={categoryId}
-                              lane={ROADMAP_LANES[categoryId]}
-                              unlocked={unlocked}
-                              mastered={mastered}
-                              selected={highlighted}
-                              completedCount={completedCount}
-                              showLeftConnector={false}
-                              showRightConnector={false}
-                              onClick={() => openLevelPanel(categoryId)}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                    
-                    <div className="flex w-full items-center gap-4 pt-4 border-t border-slate-700">
-                      <div className="flex-1">
-                        <div className="text-sm text-slate-400 mb-1">Treasure Vault</div>
-                        <div className="text-base font-semibold text-amber-300 mb-2">Final Reward</div>
-                        <div className="text-xs text-slate-500">Unlock at Level 5</div>
-                      </div>
-                      <div className="flex-shrink-0">
-                        <RoadmapTreasureStop completedLevels={completedLevels} />
-                      </div>
+                  <div className="rounded-[1.4rem] border border-white/10 bg-white/[0.05] px-4 py-3 text-sm text-slate-300 shadow-[0_0_20px_rgba(255,255,255,0.06)]">
+                    <div className="text-xs font-black uppercase tracking-[0.24em] text-cyan-300">
+                      Journey Status
+                    </div>
+                    <div className="mt-2 font-black text-white">
+                      {completedLevels}/5 Levels Complete
                     </div>
                   </div>
                 </div>
 
-                <div className="mt-4 rounded-[1.2rem] border border-white/8 bg-white/[0.04] px-4 py-3 text-sm text-slate-300">
-                  Tap any level card to open its panel and choose a difficulty mode. Complete levels to unlock new challenges!
-                </div>
+                {isMobile ? (
+                  <MobileAdventureMap
+                    activeCategory={activeCategory}
+                    completionMap={completionMap}
+                    completedLevels={completedLevels}
+                    onSelectCategory={openLevelPanel}
+                  />
+                ) : (
+                  <DesktopAdventureMap
+                    activeCategory={activeCategory}
+                    completionMap={completionMap}
+                    completedLevels={completedLevels}
+                    onSelectCategory={openLevelPanel}
+                  />
+                )}
               </div>
+            </div>
+
+            <div className="mt-4 rounded-[1.2rem] border border-white/8 bg-white/[0.04] px-4 py-3 text-sm text-slate-300">
+              Tap any level marker to open its panel and choose a difficulty mode. Complete levels to unlock the next station on the map.
             </div>
           </div>
         </main>
@@ -990,6 +961,7 @@ function RoadmapLevelStop({
   completedCount,
   showLeftConnector,
   showRightConnector,
+  compact = false,
   onClick,
 }: {
   categoryId: CategoryId;
@@ -1000,6 +972,7 @@ function RoadmapLevelStop({
   completedCount: number;
   showLeftConnector: boolean;
   showRightConnector: boolean;
+  compact?: boolean;
   onClick: () => void;
 }) {
   const theme = ROADMAP_COLOR_THEMES[categoryId];
@@ -1011,7 +984,8 @@ function RoadmapLevelStop({
       onClick={onClick}
       disabled={!unlocked}
       className={cn(
-        "min-h-[190px] w-full rounded-[1.5rem] border p-4 text-left backdrop-blur-xl transition-all duration-300",
+        "w-full rounded-[1.5rem] border p-4 text-left backdrop-blur-xl transition-all duration-300",
+        compact ? "min-h-[160px]" : "min-h-[190px]",
         theme.cardClassName,
         selected && "ring-1 ring-white/20",
         unlocked ? "hover:-translate-y-1" : "cursor-not-allowed opacity-60",
@@ -1053,11 +1027,11 @@ function RoadmapLevelStop({
         {ROADMAP_PREVIEW_LABELS[categoryId]}
       </p>
 
-      <div className="mt-4 inline-flex rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white">
+      <div className={cn("mt-4 inline-flex rounded-full border border-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white", compact ? "bg-white/[0.04]" : "bg-white/[0.05]")}>
         {LEVEL_THEMES[categoryId].badge}
       </div>
 
-      <div className="mt-4 flex items-center justify-between gap-3">
+      <div className={cn("mt-4 flex items-center justify-between gap-3", compact ? "text-[10px]" : "")}> 
         <div className="flex gap-1.5">
           {Array.from({ length: 3 }, (_, segmentIndex) => (
             <span
@@ -1168,11 +1142,16 @@ function RoadmapLevelStop({
   );
 }
 
-function RoadmapTreasureStop({ completedLevels }: { completedLevels: number }) {
+function RoadmapTreasureStop({ completedLevels, compact = false }: { completedLevels: number; compact?: boolean }) {
   const unlocked = completedLevels === CATEGORY_SEQUENCE.length;
 
   return (
-    <div className="grid min-h-[460px] grid-rows-[minmax(0,1fr)_92px_minmax(0,1fr)] gap-4">
+    <div
+      className={cn(
+        "grid gap-4",
+        compact ? "min-h-[340px] grid-rows-[minmax(0,1fr)_80px_minmax(0,1fr)]" : "min-h-[460px] grid-rows-[minmax(0,1fr)_92px_minmax(0,1fr)]",
+      )}
+    >
       <div className="h-full w-full" aria-hidden="true" />
 
       <div className="relative flex items-center justify-center">
@@ -1260,6 +1239,184 @@ function RewardPill({ icon, label }: { icon: React.ReactNode; label: string }) {
     <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-3 py-2">
       <span className="text-cyan-200">{icon}</span>
       <span>{label}</span>
+    </div>
+  );
+}
+
+function DesktopAdventureMap({
+  activeCategory,
+  completionMap,
+  completedLevels,
+  onSelectCategory,
+}: {
+  activeCategory: CategoryId;
+  completionMap: CategoryCompletionMap;
+  completedLevels: number;
+  onSelectCategory: (categoryId: CategoryId) => void;
+}) {
+  const activeIndex = CATEGORY_SEQUENCE.findIndex((id) => id === activeCategory);
+  const trainPosition = DESKTOP_STAGE_POSITIONS[Math.max(0, activeIndex)];
+
+  return (
+    <div className="relative mt-8 min-h-[640px] overflow-hidden rounded-[2rem] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(8,15,36,0.9),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(34,197,94,0.12),transparent_24%),linear-gradient(180deg,rgba(3,6,18,0.92),rgba(7,12,34,0.96))] shadow-[0_0_40px_rgba(0,0,0,0.3)]">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_16%,rgba(79,70,229,0.12),transparent_35%),radial-gradient(circle_at_90%_18%,rgba(16,185,129,0.12),transparent_30%)]" />
+      <div className="pointer-events-none absolute left-10 top-12 h-28 w-28 rounded-full bg-slate-900/50 blur-3xl" />
+      <div className="pointer-events-none absolute right-10 top-24 h-24 w-24 rounded-full bg-[#16a34a]/20 blur-3xl" />
+      <div className="pointer-events-none absolute left-24 bottom-16 h-24 w-24 rounded-full bg-[#38bdf8]/15 blur-3xl" />
+
+      <svg className="absolute inset-0 h-full w-full" viewBox="0 0 1200 720" preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="trackGlow" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="rgba(59,130,246,0.15)" />
+            <stop offset="50%" stopColor="rgba(251,191,36,0.35)" />
+            <stop offset="100%" stopColor="rgba(34,197,94,0.15)" />
+          </linearGradient>
+        </defs>
+        <path
+          d="M120 348 C210 270 310 220 380 190 C470 160 540 220 620 210 C730 200 720 430 540 540 C620 540 710 540 780 540 C880 540 960 520 1040 520"
+          fill="none"
+          stroke="rgba(148,163,184,0.25)"
+          strokeWidth="18"
+          strokeLinecap="round"
+        />
+        <path
+          d="M120 348 C210 270 310 220 380 190 C470 160 540 220 620 210 C730 200 720 430 540 540 C620 540 710 540 780 540 C880 540 960 520 1040 520"
+          fill="none"
+          stroke="url(#trackGlow)"
+          strokeWidth="8"
+          strokeLinecap="round"
+          className="animate-road-shimmer"
+          style={{ strokeDasharray: 30, strokeDashoffset: 0 }}
+        />
+      </svg>
+
+      <div className="relative z-10 h-full">
+        {CATEGORY_SEQUENCE.map((categoryId, index) => {
+          const unlocked = isCategoryUnlocked(completionMap, categoryId);
+          const mastered = isCategoryMastered(completionMap, categoryId);
+          const highlighted = activeCategory === categoryId;
+          const completedCount = getCategoryCompletionCount(completionMap, categoryId);
+          const position = DESKTOP_STAGE_POSITIONS[index];
+
+          return (
+            <div
+              key={categoryId}
+              className="absolute w-[320px]"
+              style={{ left: position.left, top: position.top }}
+            >
+              <RoadmapLevelStop
+                categoryId={categoryId}
+                lane={ROADMAP_LANES[categoryId]}
+                unlocked={unlocked}
+                mastered={mastered}
+                selected={highlighted}
+                completedCount={completedCount}
+                showLeftConnector={false}
+                showRightConnector={false}
+                compact
+                onClick={() => onSelectCategory(categoryId)}
+              />
+            </div>
+          );
+        })}
+
+        <div
+          className="absolute w-[300px]"
+          style={{ left: DESKTOP_TREASURE_POSITION.left, top: DESKTOP_TREASURE_POSITION.top }}
+        >
+          <RoadmapTreasureStop completedLevels={completedLevels} compact />
+        </div>
+
+        <AdventureTrain
+          left={trainPosition.left}
+          top={
+            trainPosition.top === "70%"
+              ? "calc(70% - 4rem)"
+              : `calc(${trainPosition.top} + 6rem)`
+          }
+          label={`Level ${getCategoryLevelNumber(activeCategory)}`}
+        />
+      </div>
+    </div>
+  );
+}
+
+function MobileAdventureMap({
+  activeCategory,
+  completionMap,
+  completedLevels,
+  onSelectCategory,
+}: {
+  activeCategory: CategoryId;
+  completionMap: CategoryCompletionMap;
+  completedLevels: number;
+  onSelectCategory: (categoryId: CategoryId) => void;
+}) {
+  return (
+    <div className="relative mt-8 overflow-hidden rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(6,9,18,0.98),rgba(9,19,40,0.98))] p-4 shadow-[0_0_28px_rgba(15,23,42,0.35)]">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(148,163,184,0.06),transparent_25%),radial-gradient(circle_at_bottom,rgba(34,197,94,0.08),transparent_25%)]" />
+      <div className="absolute left-10 top-10 bottom-10 w-1.5 rounded-full bg-slate-700/60" />
+      <div className="relative z-10 space-y-8">
+        {CATEGORY_SEQUENCE.map((categoryId) => {
+          const unlocked = isCategoryUnlocked(completionMap, categoryId);
+          const mastered = isCategoryMastered(completionMap, categoryId);
+          const highlighted = activeCategory === categoryId;
+          const completedCount = getCategoryCompletionCount(completionMap, categoryId);
+
+          return (
+            <div key={categoryId} className="relative flex gap-4">
+              <div className="relative z-10 flex h-14 w-14 items-center justify-center rounded-full border border-white/10 bg-slate-950/90 text-white shadow-[0_0_24px_rgba(34,211,238,0.2)]">
+                <span className="text-sm font-black">{getCategoryLevelNumber(categoryId)}</span>
+              </div>
+              <div className="flex-1">
+                <RoadmapLevelStop
+                  categoryId={categoryId}
+                  lane={ROADMAP_LANES[categoryId]}
+                  unlocked={unlocked}
+                  mastered={mastered}
+                  selected={highlighted}
+                  completedCount={completedCount}
+                  showLeftConnector={false}
+                  showRightConnector={false}
+                  compact
+                  onClick={() => onSelectCategory(categoryId)}
+                />
+              </div>
+            </div>
+          );
+        })}
+
+        <div className="relative flex gap-4">
+          <div className="relative z-10 flex h-14 w-14 items-center justify-center rounded-full border border-white/10 bg-amber-500/15 text-white shadow-[0_0_24px_rgba(245,158,11,0.2)]">
+            <span className="text-base">🏆</span>
+          </div>
+          <div className="flex-1">
+            <RoadmapTreasureStop completedLevels={completedLevels} compact />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AdventureTrain({
+  left,
+  top,
+  label,
+}: {
+  left: string;
+  top: string;
+  label: string;
+}) {
+  return (
+    <div
+      className="absolute z-20 flex h-20 w-28 items-center justify-center rounded-[2rem] bg-gradient-to-br from-sky-500 via-blue-600 to-slate-950 p-3 text-white shadow-[0_0_40px_rgba(59,130,246,0.35)] animate-road-bob"
+      style={{ left, top }}
+    >
+      <div className="flex items-center gap-2">
+        <span className="text-2xl">🚂</span>
+        <span className="text-[11px] font-black uppercase tracking-[0.2em]">{label}</span>
+      </div>
     </div>
   );
 }
