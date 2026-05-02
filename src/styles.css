@@ -41,6 +41,11 @@
   --animate-slide-bg: slide-bg 6s linear infinite;
   --animate-run: run 0.5s steps(2) infinite;
   --animate-rise: rise 1s ease-out forwards;
+  --animate-particle-float: particle-float 12s linear infinite;
+  --animate-coin-shower: coin-shower 0.9s ease-in forwards;
+  --animate-streak-pulse: streak-pulse 1.4s ease-in-out infinite;
+  --animate-road-bob: road-bob 2.8s ease-in-out infinite;
+  --animate-road-shimmer: road-shimmer 3.6s linear infinite;
 }
 
 :root {
@@ -146,6 +151,69 @@
     opacity: 0;
   }
 }
+@keyframes particle-float {
+  0% {
+    transform: translate3d(0, 0, 0) scale(0.9);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.5;
+  }
+  50% {
+    transform: translate3d(20px, -120px, 0) scale(1.15);
+    opacity: 0.9;
+  }
+  100% {
+    transform: translate3d(-10px, -240px, 0) scale(0.8);
+    opacity: 0;
+  }
+}
+@keyframes coin-shower {
+  0% {
+    transform: translateY(-20px) scale(0.4);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(420px) rotate(460deg) scale(1);
+    opacity: 0;
+  }
+}
+@keyframes streak-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 4px rgba(251, 146, 60, 0.4));
+  }
+  50% {
+    transform: scale(1.12);
+    filter: drop-shadow(0 0 10px rgba(251, 146, 60, 0.8));
+  }
+}
+@keyframes road-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+@keyframes road-shimmer {
+  0% {
+    background-position-x: 0%;
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    background-position-x: 180%;
+    opacity: 0.7;
+  }
+}
 
 @layer base {
   * {
@@ -154,12 +222,7 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
-    font-family:
-      ui-sans-serif,
-      system-ui,
-      -apple-system,
-      "Segoe UI",
-      sans-serif;
+    font-family: "Segoe UI Variable Display", Bahnschrift, "Trebuchet MS", "Segoe UI", sans-serif;
     overflow-x: hidden;
     min-height: 100dvh;
     -webkit-tap-highlight-color: transparent;

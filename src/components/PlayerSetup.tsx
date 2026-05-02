@@ -40,10 +40,11 @@ export function PlayerSetup({ demoPlaysUsed, onStart }: Props) {
     <div className="min-h-dvh w-full px-3 py-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-4 sm:py-12">
       <div className="mx-auto max-w-5xl">
         <h1 className="text-center text-3xl font-black tracking-tight text-glow-cyan sm:text-5xl md:text-6xl">
-          CODE RUNNER <span className="text-glow-pink">ELITE</span>
+          C <span className="text-glow-pink">QUEST</span>
         </h1>
         <p className="mt-2 text-center text-sm text-muted-foreground sm:mt-3 sm:text-base">
-          Run. Dodge. Solve. Master C programming with demo practice and your main event run.
+          Launch your futuristic coding journey. Choose your avatar, claim rewards, and master C one
+          glowing level at a time.
         </p>
 
         <div className="mt-5 rounded-2xl border bg-card p-4 shadow-2xl sm:mt-8 sm:p-6">
@@ -114,7 +115,7 @@ export function PlayerSetup({ demoPlaysUsed, onStart }: Props) {
                 </h3>
                 <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
                   Demo play can be used only 3 times. Main event scores go to the controlled
-                  leaderboard.
+                  leaderboard while your roadmap progress stays personal.
                 </p>
               </div>
               <div className="text-xs font-semibold uppercase tracking-wider text-glow-yellow sm:text-sm">
@@ -132,8 +133,8 @@ export function PlayerSetup({ demoPlaysUsed, onStart }: Props) {
                   Demo Play
                 </div>
                 <div className="mt-2 text-sm text-muted-foreground">
-                  Practice with a separate 10-question demo set. Demo results never open the event
-                  leaderboard.
+                  Practice the C Quest flow with a separate 10-question demo set. Demo results never
+                  open the event leaderboard.
                 </div>
               </button>
 
@@ -146,8 +147,8 @@ export function PlayerSetup({ demoPlaysUsed, onStart }: Props) {
                   Start Game
                 </div>
                 <div className="mt-2 text-sm text-muted-foreground">
-                  Join the real event. Your score, avatar, feedback, and leaderboard status will be
-                  tracked for the admin panel.
+                  Enter the real C Quest roadmap. Your score, avatar, feedback, and leaderboard
+                  status will be tracked for the event panel.
                 </div>
               </button>
             </div>

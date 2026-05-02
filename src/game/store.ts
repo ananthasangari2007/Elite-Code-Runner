@@ -13,6 +13,9 @@ export type GameSummary = {
   answeredCount: number;
   accuracy: number;
   bestStreak: number;
+  comboBonusXp?: number;
+  comboCoinBonus?: number;
+  clearedRun?: boolean;
 };
 
 export type AdminConfig = {

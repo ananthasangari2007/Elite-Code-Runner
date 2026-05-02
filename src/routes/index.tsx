@@ -8,6 +8,7 @@ import { PlayerSetup } from "@/components/PlayerSetup";
 import { RulesScreen } from "@/components/RulesScreen";
 import {
   getCategoryCompletionMap,
+  getCategoryLabel,
   getDemoQuestionSet,
   getQuestionSet,
   markDifficultyComplete,
@@ -15,6 +16,16 @@ import {
   type CategoryId,
   type DifficultyId,
 } from "@/game/questions";
+import {
+  DIFFICULTY_RUN_CONFIG,
+  applyRunRewards,
+  buyAvatar,
+  ensurePlayerProgress,
+  getPlayerProgress,
+  spinWheel,
+  type PlayerProgress,
+  type RunRewardSummary,
+} from "@/game/progression";
 import { supabase } from "@/integrations/supabase/client";
 import {
   createPlayerSession,
@@ -40,11 +51,11 @@ export const Route = createFileRoute("/")({
   component: Index,
   head: () => ({
     meta: [
-      { title: "Code Runner Elite - Admin Event Upgrade" },
+      { title: "C Quest - Futuristic C Programming Learning Game" },
       {
         name: "description",
         content:
-          "Code Runner Elite with demo play, event leaderboard release controls, feedback collection, and a live admin panel dashboard.",
+          "C Quest is a futuristic gamified learning experience for mastering C programming through levels, rewards, streaks, and interactive gameplay.",
       },
     ],
   }),
@@ -64,7 +75,9 @@ function Index() {
   const [completionMap, setCompletionMap] = useState<CategoryCompletionMap>(() =>
     getCategoryCompletionMap(),
   );
+  const [playerProgress, setPlayerProgress] = useState<PlayerProgress>(() => getPlayerProgress());
   const [result, setResult] = useState<GameSummary | null>(null);
+  const [rewardSummary, setRewardSummary] = useState<RunRewardSummary | null>(null);
   const [demoPlaysUsed, setDemoPlaysUsed] = useState(0);
   const [adminConfig, setAdminConfig] = useState<AdminConfig>(() => getLocalAdminConfig());
   const [sessions, setSessions] = useState<PlayerSession[]>(() => {
@@ -73,6 +86,8 @@ function Index() {
   });
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [adminPanelOpen, setAdminPanelOpen] = useState(false);
+  const [spinWheelReward, setSpinWheelReward] = useState<string | null>(null);
+  const [shopMessage, setShopMessage] = useState<string | null>(null);
 
   const refreshSnapshot = useCallback(async () => {
     try {
@@ -93,6 +108,7 @@ function Index() {
       typeof window === "undefined" ? 0 : Number(localStorage.getItem(DEMO_PLAYS_KEY) || "0");
     setDemoPlaysUsed(storedDemoPlays);
     setCompletionMap(getCategoryCompletionMap());
+    setPlayerProgress(getPlayerProgress());
 
     let active = true;
     const boot = async () => {
@@ -155,18 +171,26 @@ function Index() {
     setSelectedDifficulty(null);
   };
 
+  const selectedRunConfig =
+    mode === "competition" && selectedDifficulty ? DIFFICULTY_RUN_CONFIG[selectedDifficulty] : null;
+
   const selectedQuestions =
     mode === "demo"
       ? getDemoQuestionSet()
-      : selectedCategory && selectedDifficulty
-        ? getQuestionSet(selectedCategory, selectedDifficulty)
+      : selectedCategory && selectedDifficulty && selectedRunConfig
+        ? getQuestionSet(selectedCategory, selectedDifficulty, selectedRunConfig.questionCount)
         : [];
 
   const enterMode = (playerName: string, selectedAvatarId: number, selectedMode: PlayMode) => {
+    const progress = ensurePlayerProgress(selectedAvatarId);
     setAdminPanelOpen(false);
     clearRunSelection();
     setCurrentSessionId(null);
     setResult(null);
+    setRewardSummary(null);
+    setPlayerProgress(progress);
+    setSpinWheelReward(null);
+    setShopMessage(null);
     setName(playerName);
     setAvatarId(selectedAvatarId);
     setMode(selectedMode);
@@ -201,14 +225,28 @@ function Index() {
   };
 
   const finishGameplay = async (summary: GameSummary) => {
-    if (
-      selectedCategory &&
-      selectedDifficulty &&
-      selectedQuestions.length > 0 &&
-      summary.answeredCount >= selectedQuestions.length
-    ) {
-      setCompletionMap(markDifficultyComplete(selectedCategory, selectedDifficulty));
+    let nextCompletionMap = completionMap;
+
+    if (selectedCategory && selectedDifficulty && summary.clearedRun) {
+      nextCompletionMap = markDifficultyComplete(selectedCategory, selectedDifficulty);
+      setCompletionMap(nextCompletionMap);
     }
+
+    if (mode === "competition" && selectedCategory && selectedDifficulty) {
+      const rewardResult = applyRunRewards({
+        progress: playerProgress,
+        categoryId: selectedCategory,
+        difficultyId: selectedDifficulty,
+        completionMap: nextCompletionMap,
+        summary,
+      });
+
+      setPlayerProgress(rewardResult.progress);
+      setRewardSummary(rewardResult.rewardSummary);
+    } else {
+      setRewardSummary(null);
+    }
+
     setResult(summary);
     setPhase("over");
   };
@@ -229,6 +267,7 @@ function Index() {
     }
     setCurrentSessionId(null);
     setResult(null);
+    setRewardSummary(null);
     clearRunSelection();
     setPhase("setup");
   };
@@ -250,6 +289,7 @@ function Index() {
     syncResultExit("home");
     setCurrentSessionId(null);
     setResult(null);
+    setRewardSummary(null);
     clearRunSelection();
     setPhase("setup");
   };
@@ -257,6 +297,7 @@ function Index() {
   const playAgain = () => {
     syncResultExit("replay");
     setResult(null);
+    setRewardSummary(null);
     setCurrentSessionId(null);
     if (mode === "demo") {
       setPhase("rules");
@@ -298,9 +339,22 @@ function Index() {
     await startNewRound();
     setCurrentSessionId(null);
     setResult(null);
+    setRewardSummary(null);
     clearRunSelection();
     setPhase("setup");
     await refreshSnapshot();
+  };
+
+  const handleSpinWheel = () => {
+    const result = spinWheel(playerProgress);
+    setPlayerProgress(result.progress);
+    setSpinWheelReward(result.rewardLabel);
+  };
+
+  const handleBuyAvatar = (targetAvatarId: number) => {
+    const result = buyAvatar(playerProgress, targetAvatarId);
+    setPlayerProgress(result.progress);
+    setShopMessage(result.message);
   };
 
   return (
@@ -309,14 +363,21 @@ function Index() {
 
       {phase === "levels" && (
         <LevelSelectScreen
+          playerName={name}
+          avatarId={avatarId}
+          progress={playerProgress}
           completionMap={completionMap}
           selectedCategory={selectedCategory}
           selectedDifficulty={selectedDifficulty}
+          spinWheelReward={spinWheelReward}
+          shopMessage={shopMessage}
           onSelectCategory={(categoryId) => {
             setSelectedCategory(categoryId);
             setSelectedDifficulty(null);
           }}
           onSelectDifficulty={handleSelectRun}
+          onSpinWheel={handleSpinWheel}
+          onBuyAvatar={handleBuyAvatar}
           onBack={() => {
             clearRunSelection();
             setPhase("setup");
@@ -329,6 +390,7 @@ function Index() {
           mode={mode}
           selectedCategory={selectedCategory}
           selectedDifficulty={selectedDifficulty}
+          runConfig={selectedRunConfig}
           onStart={() => void startGameplay()}
           onBack={() => {
             if (mode === "demo") {
@@ -347,6 +409,8 @@ function Index() {
           playerName={name}
           avatarId={avatarId}
           questions={selectedQuestions}
+          runConfig={selectedRunConfig}
+          runTitle={selectedCategory ? getCategoryLabel(selectedCategory) : "Demo Track"}
           onEnd={finishGameplay}
           onQuit={quitGameplay}
         />
@@ -358,6 +422,7 @@ function Index() {
           avatarId={avatarId}
           mode={mode}
           result={result}
+          rewardSummary={rewardSummary}
           config={adminConfig}
           sessions={sessions}
           currentSessionId={currentSessionId}

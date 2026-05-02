@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { sfx, startMusic, stopMusic, setMuted, isMuted } from "@/game/audio";
 import { AVATARS } from "@/game/avatars";
-import { QUESTIONS_PER_RUN } from "@/game/config";
+import type { DifficultyRunConfig } from "@/game/progression";
 import type { Question } from "@/game/questions";
 import type { GameSummary } from "@/game/store";
 import { Countdown } from "./Countdown";
@@ -10,7 +10,7 @@ import { QuestionPopup } from "./QuestionPopup";
 const LANES = 4;
 const GAME_DURATION_MS = 5 * 60 * 1000;
 const SPAWN_INTERVAL_MS = 1400;
-const OBJECT_SPEED = 0.45; // px per ms
+const OBJECT_SPEED = 0.45;
 const MAX_ACTIVE_QUESTIONS = 2;
 const PICKUP_SYMBOL = "?";
 const HEART_SYMBOL = "\u2665";
@@ -28,6 +28,8 @@ type Props = {
   playerName: string;
   avatarId: number;
   questions: Question[];
+  runConfig: DifficultyRunConfig | null;
+  runTitle: string;
   onEnd: (summary: GameSummary) => void;
   onQuit: () => void;
 };
@@ -35,18 +37,40 @@ type Props = {
 function shuffleQuestionIndexes(length: number) {
   const order = Array.from({ length }, (_, index) => index);
 
-  for (let i = order.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [order[i], order[j]] = [order[j], order[i]];
+  for (let index = order.length - 1; index > 0; index -= 1) {
+    const nextIndex = Math.floor(Math.random() * (index + 1));
+    [order[index], order[nextIndex]] = [order[nextIndex], order[index]];
   }
 
   return order;
 }
 
-export function GameCanvas({ playerName, avatarId, questions, onEnd, onQuit }: Props) {
+export function GameCanvas({
+  playerName,
+  avatarId,
+  questions,
+  runConfig,
+  runTitle,
+  onEnd,
+  onQuit,
+}: Props) {
   const avatar = AVATARS[avatarId];
+  const activeRunConfig: DifficultyRunConfig = runConfig ?? {
+    id: "easy",
+    label: "Demo Play",
+    cardLabel: "Practice Orbit",
+    questionCount: questions.length,
+    baseXp: 0,
+    coins: 0,
+    gems: 0,
+    timerSeconds: null,
+    hintLimit: "unlimited",
+    description: "Practice the flow with the current game engine.",
+    chip: "from-cyan-400/25 via-blue-400/10 to-transparent",
+    accent: "text-cyan-300",
+  };
+  const totalQuestions = questions.length;
   const trackRef = useRef<HTMLDivElement>(null);
-  const totalQuestions = Math.min(QUESTIONS_PER_RUN, questions.length);
 
   const [phase, setPhase] = useState<"countdown" | "playing" | "paused" | "question">("countdown");
   const [lane, setLane] = useState(1);
@@ -61,6 +85,10 @@ export function GameCanvas({ playerName, avatarId, questions, onEnd, onQuit }: P
   const [shake, setShake] = useState(false);
   const [correctAnswers, setCorrectAnswers] = useState(0);
   const [bestStreak, setBestStreak] = useState(0);
+  const [comboBonusXp, setComboBonusXp] = useState(0);
+  const [comboCoinBonus, setComboCoinBonus] = useState(0);
+  const [coinShower, setCoinShower] = useState(false);
+  const [hintsUsed, setHintsUsed] = useState(0);
 
   const answeredQ = useRef<Set<number>>(new Set());
   const idCounter = useRef(0);
@@ -114,7 +142,6 @@ export function GameCanvas({ playerName, avatarId, questions, onEnd, onQuit }: P
       if (qIndex === undefined) return currentObjects;
 
       const id = ++idCounter.current;
-
       return [...currentObjects, { id, lane: Math.floor(Math.random() * LANES), y: -72, qIndex }];
     });
   }, [refillQueueIfNeeded, totalQuestions]);
@@ -130,14 +157,14 @@ export function GameCanvas({ playerName, avatarId, questions, onEnd, onQuit }: P
   }, []);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") {
-        e.preventDefault();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "ArrowLeft" || event.key === "a" || event.key === "A") {
+        event.preventDefault();
         moveLane(-1);
-      } else if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") {
-        e.preventDefault();
+      } else if (event.key === "ArrowRight" || event.key === "d" || event.key === "D") {
+        event.preventDefault();
         moveLane(1);
-      } else if (e.key === "p" || e.key === "P") {
+      } else if (event.key === "p" || event.key === "P") {
         setPhase((currentPhase) =>
           currentPhase === "playing"
             ? "paused"
@@ -153,32 +180,32 @@ export function GameCanvas({ playerName, avatarId, questions, onEnd, onQuit }: P
   }, [moveLane]);
 
   useEffect(() => {
-    const el = trackRef.current;
-    if (!el) return;
+    const element = trackRef.current;
+    if (!element) return;
 
     let startX = 0;
     let startY = 0;
 
-    const onStart = (e: TouchEvent) => {
-      startX = e.touches[0].clientX;
-      startY = e.touches[0].clientY;
+    const onStart = (event: TouchEvent) => {
+      startX = event.touches[0].clientX;
+      startY = event.touches[0].clientY;
     };
 
-    const onEnd = (e: TouchEvent) => {
-      const dx = e.changedTouches[0].clientX - startX;
-      const dy = e.changedTouches[0].clientY - startY;
+    const onEnd = (event: TouchEvent) => {
+      const deltaX = event.changedTouches[0].clientX - startX;
+      const deltaY = event.changedTouches[0].clientY - startY;
 
-      if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 30) {
-        moveLane(dx > 0 ? 1 : -1);
+      if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 30) {
+        moveLane(deltaX > 0 ? 1 : -1);
       }
     };
 
-    el.addEventListener("touchstart", onStart, { passive: true });
-    el.addEventListener("touchend", onEnd, { passive: true });
+    element.addEventListener("touchstart", onStart, { passive: true });
+    element.addEventListener("touchend", onEnd, { passive: true });
 
     return () => {
-      el.removeEventListener("touchstart", onStart);
-      el.removeEventListener("touchend", onEnd);
+      element.removeEventListener("touchstart", onStart);
+      element.removeEventListener("touchend", onEnd);
     };
   }, [moveLane]);
 
@@ -188,11 +215,12 @@ export function GameCanvas({ playerName, avatarId, questions, onEnd, onQuit }: P
   }, []);
 
   const endGame = useCallback(
-    (finalScore: number) => {
+    (finalScore: number, clearedRun: boolean) => {
       const elapsed = startTime.current ? performance.now() - startTime.current : 0;
       stopMusic();
       const answeredCount = questionsAskedRef.current;
       const totalCorrect = correctAnswersRef.current;
+
       onEnd({
         score: finalScore,
         timeMs: Math.min(elapsed, GAME_DURATION_MS),
@@ -200,9 +228,12 @@ export function GameCanvas({ playerName, avatarId, questions, onEnd, onQuit }: P
         answeredCount,
         accuracy: answeredCount === 0 ? 0 : Math.round((totalCorrect / answeredCount) * 100),
         bestStreak: bestStreakRef.current,
+        comboBonusXp,
+        comboCoinBonus,
+        clearedRun,
       });
     },
-    [onEnd],
+    [comboBonusXp, comboCoinBonus, onEnd],
   );
 
   useEffect(() => {
@@ -218,15 +249,15 @@ export function GameCanvas({ playerName, avatarId, questions, onEnd, onQuit }: P
   }, [phase, spawnQuestionObject]);
 
   useEffect(() => {
-    if (phase !== "playing" || currentQ || questionsAsked >= totalQuestions) return;
-    if (objects.length > 0) return;
+    if (phase !== "playing" || currentQ || questionsAsked >= totalQuestions || objects.length > 0)
+      return;
 
     const timeoutId = window.setTimeout(() => {
       spawnQuestionObject();
     }, 250);
 
     return () => window.clearTimeout(timeoutId);
-  }, [phase, currentQ, questionsAsked, objects.length, spawnQuestionObject, totalQuestions]);
+  }, [phase, currentQ, questionsAsked, totalQuestions, objects.length, spawnQuestionObject]);
 
   useEffect(() => {
     if (phase !== "playing") {
@@ -243,12 +274,12 @@ export function GameCanvas({ playerName, avatarId, questions, onEnd, onQuit }: P
     const collisionBottom = playerCenterY + 35;
 
     const tick = (now: number) => {
-      const dt = Math.min(now - lastFrame.current, 50);
+      const deltaTime = Math.min(now - lastFrame.current, 50);
       lastFrame.current = now;
 
       setTimeLeft((currentTime) => {
-        const nextTime = Math.max(0, currentTime - dt);
-        if (nextTime === 0) endGame(scoreRef.current);
+        const nextTime = Math.max(0, currentTime - deltaTime);
+        if (nextTime === 0) endGame(scoreRef.current, false);
         return nextTime;
       });
 
@@ -257,29 +288,28 @@ export function GameCanvas({ playerName, avatarId, questions, onEnd, onQuit }: P
         const movedObjects: GameObject[] = [];
         let collision: { qIndex: number; objId: number } | null = null;
 
-        for (const obj of currentObjects) {
-          const nextY = obj.y + OBJECT_SPEED * dt;
+        for (const object of currentObjects) {
+          const nextY = object.y + OBJECT_SPEED * deltaTime;
 
           if (
             !collision &&
-            obj.lane === laneRef.current &&
+            object.lane === laneRef.current &&
             nextY >= collisionTop &&
             nextY <= collisionBottom
           ) {
-            collision = { qIndex: obj.qIndex, objId: obj.id };
+            collision = { qIndex: object.qIndex, objId: object.id };
             continue;
           }
 
           if (nextY > trackHeight + 80) {
-            queueRef.current.push(obj.qIndex);
+            queueRef.current.push(object.qIndex);
             continue;
           }
 
-          movedObjects.push({ ...obj, y: nextY });
+          movedObjects.push({ ...object, y: nextY });
         }
 
         if (collision) pendingQRef.current = collision;
-
         return movedObjects;
       });
 
@@ -297,63 +327,86 @@ export function GameCanvas({ playerName, avatarId, questions, onEnd, onQuit }: P
 
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [phase, endGame, refillQueueIfNeeded]);
+  }, [endGame, phase, refillQueueIfNeeded]);
 
   const spawnPopup = (text: string, color: string) => {
     const id = ++idCounter.current;
     setPopups((currentPopups) => [...currentPopups, { id, text, color }]);
-    setTimeout(() => {
+    window.setTimeout(() => {
       setPopups((currentPopups) => currentPopups.filter((popup) => popup.id !== id));
-    }, 1000);
+    }, 1100);
   };
 
-  const handleAnswer = (idx: number) => {
+  const triggerCoinShower = () => {
+    setCoinShower(true);
+    window.setTimeout(() => setCoinShower(false), 900);
+  };
+
+  const handleAnswer = (idx: number | null) => {
     if (!currentQ) return;
 
-    const q = questions[currentQ.qIndex];
-    const correct = idx === q.answer;
-    const newAsked = questionsAsked + 1;
+    const currentQuestion = questions[currentQ.qIndex];
+    const correct = idx !== null && idx === currentQuestion.answer;
+    const nextAsked = questionsAsked + 1;
     answeredQ.current.add(currentQ.qIndex);
-    setQuestionsAsked(newAsked);
+    setQuestionsAsked(nextAsked);
 
-    let newScore = score;
-    let newLives = lives;
+    let nextScore = score;
+    let nextLives = lives;
 
     if (correct) {
-      newScore += 5;
+      nextScore += 5;
       const nextCorrectAnswers = correctAnswers + 1;
       const nextStreak = currentStreakRef.current + 1;
+      let xpReward = 0;
+      let coinReward = 0;
+
       currentStreakRef.current = nextStreak;
       setCorrectAnswers(nextCorrectAnswers);
+
       if (nextStreak > bestStreakRef.current) {
         bestStreakRef.current = nextStreak;
         setBestStreak(nextStreak);
       }
+
+      if (nextStreak % 5 === 0) {
+        xpReward += 25;
+        coinReward += 10;
+        triggerCoinShower();
+        spawnPopup("COMBO x5 +25 XP", "var(--neon-yellow)");
+      } else if (nextStreak % 3 === 0) {
+        xpReward += 10;
+        spawnPopup("COMBO x3 +10 XP", "var(--neon-cyan)");
+      }
+
+      if (xpReward > 0) setComboBonusXp((currentBonus) => currentBonus + xpReward);
+      if (coinReward > 0) setComboCoinBonus((currentBonus) => currentBonus + coinReward);
+
       sfx.correct();
       spawnPopup("+5", "var(--neon-green)");
     } else {
-      newScore -= 1;
-      newLives -= 1;
+      nextScore -= 1;
+      nextLives -= 1;
       currentStreakRef.current = 0;
       sfx.wrong();
-      spawnPopup(`-1 ${HEART_SYMBOL}`, "var(--neon-pink)");
+      spawnPopup(idx === null ? "TIME UP -1 \u2665" : "-1 \u2665", "var(--neon-pink)");
       setShake(true);
-      setTimeout(() => setShake(false), 400);
+      window.setTimeout(() => setShake(false), 400);
     }
 
-    setScore(newScore);
-    setLives(newLives);
+    setScore(nextScore);
+    setLives(nextLives);
     setCurrentQ(null);
 
-    if (newLives <= 0 || newAsked >= totalQuestions) {
-      endGame(newScore);
+    if (nextLives <= 0 || nextAsked >= totalQuestions) {
+      endGame(nextScore, nextAsked >= totalQuestions && nextLives > 0);
       return;
     }
 
     setPhase("playing");
     window.setTimeout(() => {
       spawnQuestionObject();
-    }, 50);
+    }, 80);
   };
 
   const toggleMute = () => {
@@ -368,88 +421,100 @@ export function GameCanvas({ playerName, avatarId, questions, onEnd, onQuit }: P
     );
   };
 
+  const useHint = () => {
+    if (activeRunConfig.hintLimit === 0) return;
+    if (activeRunConfig.hintLimit !== "unlimited" && hintsUsed >= activeRunConfig.hintLimit) return;
+    if (activeRunConfig.hintLimit !== "unlimited") {
+      setHintsUsed((currentHints) => currentHints + 1);
+    }
+  };
+
   const minutes = Math.floor(timeLeft / 60000);
   const seconds = Math.floor((timeLeft % 60000) / 1000)
     .toString()
     .padStart(2, "0");
+  const hintsLeftText =
+    activeRunConfig.hintLimit === "unlimited"
+      ? "∞"
+      : `${Math.max(activeRunConfig.hintLimit - hintsUsed, 0)}`;
 
   return (
-    <div className="relative h-dvh w-full overflow-hidden select-none">
+    <div className="relative h-dvh w-full overflow-hidden select-none bg-slate-950">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.16),transparent_32%),radial-gradient(circle_at_bottom,rgba(236,72,153,0.14),transparent_28%)]" />
+
       <div className="absolute top-0 left-0 right-0 z-30 px-2 pt-[max(0.5rem,env(safe-area-inset-top))] sm:px-4">
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 rounded-2xl border border-primary/20 bg-background/70 p-2 shadow-lg backdrop-blur-sm sm:flex sm:items-center sm:justify-between sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
-          <div className="flex min-w-0 items-center gap-2">
-            <img
-              src={avatar.image}
-              alt={avatar.label}
-              width={40}
-              height={40}
-              className="h-9 w-9 shrink-0 rounded-full border-2 border-primary object-cover sm:h-10 sm:w-10"
-            />
-            <div className="min-w-0">
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                Player
-              </div>
-              <div className="max-w-[110px] truncate text-sm font-bold sm:max-w-[140px] sm:text-base">
-                {playerName}
-              </div>
-            </div>
-          </div>
-
-          <div className="col-span-2 flex items-center justify-between gap-2 sm:col-span-1 sm:justify-center sm:gap-5">
-            <div className="text-center">
-              <div className="text-[9px] uppercase text-muted-foreground sm:text-xs">Score</div>
-              <div className="text-base leading-tight font-black text-glow-cyan sm:text-2xl">
-                {score}
+        <div className="rounded-[1.75rem] border border-cyan-400/18 bg-slate-950/70 p-3 shadow-[0_0_40px_rgba(56,189,248,0.08)] backdrop-blur-xl">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex min-w-0 items-center gap-3">
+              <img
+                src={avatar.image}
+                alt={avatar.label}
+                width={44}
+                height={44}
+                className="h-11 w-11 shrink-0 rounded-2xl border border-cyan-300/40 object-cover shadow-[0_0_20px_rgba(34,211,238,0.35)]"
+              />
+              <div className="min-w-0">
+                <div className="text-[10px] font-black uppercase tracking-[0.24em] text-cyan-300/80">
+                  {activeRunConfig.label}
+                </div>
+                <div className="truncate text-sm font-black text-white sm:text-base">
+                  {playerName}
+                </div>
+                <div className="truncate text-xs text-slate-400 sm:text-sm">{runTitle}</div>
               </div>
             </div>
 
-            <div className="text-center">
-              <div className="text-[9px] uppercase text-muted-foreground sm:text-xs">Q</div>
-              <div className="text-base leading-tight font-black text-glow-yellow sm:text-2xl">
-                {questionsAsked}/{totalQuestions}
-              </div>
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+              <HudPill label="Score" value={score} accent="cyan" />
+              <HudPill
+                label="Question"
+                value={`${questionsAsked}/${totalQuestions}`}
+                accent="amber"
+              />
+              <HudPill label="Combo" value={bestStreak} accent="pink" />
+              <HudPill label="Bonus XP" value={comboBonusXp} accent="emerald" />
+              <HudPill label="Hints" value={hintsLeftText} accent="violet" />
+              <HudPill label="Time" value={`${minutes}:${seconds}`} accent="pink" />
             </div>
 
-            <div className="text-center">
-              <div className="text-[9px] uppercase text-muted-foreground sm:text-xs">Time</div>
-              <div className="text-base leading-tight font-black text-glow-pink sm:text-2xl">
-                {minutes}:{seconds}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex gap-1.5">
+                {[0, 1, 2].map((heartIndex) => (
+                  <span
+                    key={heartIndex}
+                    className={`text-lg transition-all sm:text-2xl ${
+                      heartIndex < lives ? "" : "grayscale opacity-30"
+                    }`}
+                  >
+                    {HEART_SYMBOL}
+                  </span>
+                ))}
               </div>
-            </div>
 
-            <div className="flex gap-0.5 sm:gap-1">
-              {[0, 1, 2].map((i) => (
-                <span
-                  key={i}
-                  className={`text-base transition-all sm:text-2xl ${
-                    i < lives ? "" : "grayscale opacity-30"
-                  }`}
+              <div className="flex gap-1 sm:gap-2">
+                <button
+                  type="button"
+                  onClick={toggleMute}
+                  className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-white transition hover:bg-white/10 sm:text-sm"
                 >
-                  {HEART_SYMBOL}
-                </span>
-              ))}
+                  {muted ? MUTE_ICON : SOUND_ICON}
+                </button>
+                <button
+                  type="button"
+                  onClick={togglePause}
+                  className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-white transition hover:bg-white/10 sm:text-sm"
+                >
+                  {phase === "paused" ? PLAY_ICON : PAUSE_ICON}
+                </button>
+                <button
+                  type="button"
+                  onClick={onQuit}
+                  className="rounded-xl border border-rose-400/20 bg-rose-500/15 px-3 py-2 text-xs font-bold text-rose-100 transition hover:bg-rose-500/25 sm:text-sm"
+                >
+                  Quit
+                </button>
+              </div>
             </div>
-          </div>
-
-          <div className="flex justify-end gap-1 sm:gap-2">
-            <button
-              onClick={toggleMute}
-              className="rounded-lg border bg-secondary px-2 py-1.5 text-xs hover:bg-secondary/70 sm:px-3 sm:py-2 sm:text-sm"
-            >
-              {muted ? MUTE_ICON : SOUND_ICON}
-            </button>
-            <button
-              onClick={togglePause}
-              className="rounded-lg border bg-secondary px-2 py-1.5 text-xs hover:bg-secondary/70 sm:px-3 sm:py-2 sm:text-sm"
-            >
-              {phase === "paused" ? PLAY_ICON : PAUSE_ICON}
-            </button>
-            <button
-              onClick={onQuit}
-              className="rounded-lg border bg-destructive/80 px-2 py-1.5 text-xs text-destructive-foreground hover:bg-destructive sm:px-3 sm:py-2 sm:text-sm"
-            >
-              Quit
-            </button>
           </div>
         </div>
       </div>
@@ -468,16 +533,16 @@ export function GameCanvas({ playerName, avatarId, questions, onEnd, onQuit }: P
           />
         ))}
 
-        {objects.map((obj) => (
+        {objects.map((object) => (
           <div
-            key={obj.id}
+            key={object.id}
             className="pointer-events-none absolute z-10 -translate-x-1/2 animate-float"
             style={{
-              left: `${(obj.lane + 0.5) * (100 / LANES)}%`,
-              top: obj.y,
+              left: `${(object.lane + 0.5) * (100 / LANES)}%`,
+              top: object.y,
             }}
           >
-            <div className="flex h-12 w-12 items-center justify-center rounded-full border-4 border-primary bg-card text-2xl font-black text-primary shadow-[0_0_20px_var(--neon-yellow)] md:h-16 md:w-16 md:text-4xl">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full border-4 border-cyan-300/70 bg-slate-950/90 text-2xl font-black text-cyan-200 shadow-[0_0_24px_rgba(34,211,238,0.35)] md:h-16 md:w-16 md:text-4xl">
               {PICKUP_SYMBOL}
             </div>
           </div>
@@ -492,7 +557,7 @@ export function GameCanvas({ playerName, avatarId, questions, onEnd, onQuit }: P
             alt={avatar.label}
             width={96}
             height={96}
-            className={`h-14 w-14 rounded-full border-4 border-primary object-cover drop-shadow-[0_0_20px_var(--neon-cyan)] sm:h-24 sm:w-24 ${
+            className={`h-16 w-16 rounded-[1.5rem] border-4 border-cyan-300/60 object-cover drop-shadow-[0_0_28px_rgba(34,211,238,0.45)] sm:h-24 sm:w-24 ${
               phase === "playing" ? "animate-run" : ""
             }`}
           />
@@ -501,25 +566,42 @@ export function GameCanvas({ playerName, avatarId, questions, onEnd, onQuit }: P
         {popups.map((popup) => (
           <div
             key={popup.id}
-            className="pointer-events-none absolute bottom-44 left-1/2 z-30 -translate-x-1/2 text-2xl font-black animate-rise sm:text-4xl"
+            className="pointer-events-none absolute bottom-44 left-1/2 z-30 -translate-x-1/2 text-xl font-black animate-rise sm:text-4xl"
             style={{ color: popup.color, textShadow: `0 0 20px ${popup.color}` }}
           >
             {popup.text}
           </div>
         ))}
+
+        {coinShower && (
+          <div className="pointer-events-none absolute inset-0 z-20 overflow-hidden">
+            {Array.from({ length: 18 }, (_, index) => (
+              <span
+                key={index}
+                className="absolute top-20 h-3 w-3 animate-coin-shower rounded-full bg-[linear-gradient(135deg,#facc15_0%,#fb7185_100%)] opacity-90"
+                style={{
+                  left: `${8 + index * 5}%`,
+                  animationDelay: `${index * 40}ms`,
+                }}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="pointer-events-none absolute right-0 bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-0 z-20 flex justify-between px-3 sm:px-6">
         <button
+          type="button"
           onClick={() => moveLane(-1)}
-          className="pointer-events-auto h-14 w-14 rounded-full border-2 border-primary bg-primary/80 text-2xl font-bold text-primary-foreground shadow-lg backdrop-blur active:scale-90 sm:h-16 sm:w-16 sm:text-3xl"
+          className="pointer-events-auto h-14 w-14 rounded-full border-2 border-cyan-300/50 bg-cyan-400/80 text-2xl font-bold text-slate-950 shadow-lg backdrop-blur active:scale-90 sm:h-16 sm:w-16 sm:text-3xl"
           aria-label="Move left"
         >
           {LEFT_ARROW}
         </button>
         <button
+          type="button"
           onClick={() => moveLane(1)}
-          className="pointer-events-auto h-14 w-14 rounded-full border-2 border-primary bg-primary/80 text-2xl font-bold text-primary-foreground shadow-lg backdrop-blur active:scale-90 sm:h-16 sm:w-16 sm:text-3xl"
+          className="pointer-events-auto h-14 w-14 rounded-full border-2 border-cyan-300/50 bg-cyan-400/80 text-2xl font-bold text-slate-950 shadow-lg backdrop-blur active:scale-90 sm:h-16 sm:w-16 sm:text-3xl"
           aria-label="Move right"
         >
           {RIGHT_ARROW}
@@ -529,12 +611,16 @@ export function GameCanvas({ playerName, avatarId, questions, onEnd, onQuit }: P
       {phase === "countdown" && <Countdown onDone={() => setPhase("playing")} />}
 
       {phase === "paused" && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-          <div className="px-4 text-center">
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/82 backdrop-blur-sm">
+          <div className="rounded-[2rem] border border-cyan-400/20 bg-slate-950/85 px-8 py-10 text-center shadow-[0_0_50px_rgba(34,211,238,0.12)]">
             <div className="text-4xl font-black text-glow-yellow sm:text-6xl">PAUSED</div>
+            <p className="mt-3 text-sm text-slate-400 sm:text-base">
+              Catch your breath, then jump back into the run.
+            </p>
             <button
+              type="button"
               onClick={() => setPhase("playing")}
-              className="mt-6 rounded-xl bg-primary px-8 py-3 font-bold text-primary-foreground"
+              className="mt-6 rounded-xl bg-cyan-400 px-8 py-3 font-bold text-slate-950 transition hover:scale-[1.02]"
             >
               Resume
             </button>
@@ -547,9 +633,42 @@ export function GameCanvas({ playerName, avatarId, questions, onEnd, onQuit }: P
           question={questions[currentQ.qIndex]}
           index={questionsAsked}
           total={totalQuestions}
+          modeLabel={activeRunConfig.label}
+          questionTimerSeconds={activeRunConfig.timerSeconds}
+          hintLimit={activeRunConfig.hintLimit}
+          hintsUsed={hintsUsed}
+          onUseHint={useHint}
           onAnswer={handleAnswer}
         />
       )}
+    </div>
+  );
+}
+
+function HudPill({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: string | number;
+  accent: "cyan" | "amber" | "pink" | "emerald" | "violet";
+}) {
+  const tone =
+    accent === "cyan"
+      ? "text-cyan-200 border-cyan-300/20 bg-cyan-400/10"
+      : accent === "amber"
+        ? "text-amber-200 border-amber-300/20 bg-amber-400/10"
+        : accent === "emerald"
+          ? "text-emerald-200 border-emerald-300/20 bg-emerald-400/10"
+          : accent === "violet"
+            ? "text-violet-200 border-violet-300/20 bg-violet-400/10"
+            : "text-pink-200 border-pink-300/20 bg-pink-400/10";
+
+  return (
+    <div className={`rounded-[1.1rem] border px-3 py-2 text-center ${tone}`}>
+      <div className="text-[9px] font-black uppercase tracking-[0.22em]">{label}</div>
+      <div className="mt-1 text-sm font-black sm:text-base">{value}</div>
     </div>
   );
 }

@@ -8,6 +8,7 @@ export type Question = {
   category: string;
   difficulty: string;
   code?: string;
+  hint?: string;
 };
 
 export type LearningCategory = {
@@ -1285,12 +1286,108 @@ export const QUESTION_BANK: Record<CategoryId, Record<DifficultyId, Question[]>>
   },
 };
 
-export function getQuestionSet(categoryId: CategoryId, difficultyId: DifficultyId) {
-  return QUESTION_BANK[categoryId][difficultyId];
+function getQuestionFingerprint(question: Question) {
+  return `${question.q}::${question.code ?? ""}::${question.options.join("|")}`;
 }
 
-export function getDemoQuestionSet() {
-  return DEMO_QUESTION_SET;
+function getOrderedRunPools(categoryId: CategoryId, difficultyId: DifficultyId) {
+  const categoryPool = QUESTION_BANK[categoryId];
+
+  if (difficultyId === "easy") {
+    return [categoryPool.easy, categoryPool.medium, categoryPool.hard];
+  }
+
+  if (difficultyId === "medium") {
+    return [categoryPool.medium, categoryPool.easy, categoryPool.hard];
+  }
+
+  return [categoryPool.hard, categoryPool.medium, categoryPool.easy];
+}
+
+export function getAdaptiveHint(question: Question) {
+  if (question.hint) return question.hint;
+
+  const searchableText = `${question.q} ${question.category} ${question.code ?? ""}`.toLowerCase();
+
+  if (question.code) {
+    if (/\bfor\b|\bwhile\b|\bdo\b/.test(searchableText)) {
+      return "Dry-run each loop iteration and watch how the counter changes.";
+    }
+
+    if (/\bif\b|\belse\b/.test(searchableText)) {
+      return "Evaluate the condition first, then follow only the branch that becomes true.";
+    }
+
+    if (/str(len|cpy|cat|cmp)|char /.test(searchableText)) {
+      return "Remember that C strings are character arrays that end with the null character.";
+    }
+
+    if (/\[[^\]]*\]/.test(question.code) || searchableText.includes("array")) {
+      return "Track the indexes carefully. C arrays start at index 0.";
+    }
+
+    if (/return|main|fun\(|printf/.test(searchableText)) {
+      return "Trace the values passed into the function and what gets returned back out.";
+    }
+
+    return "Run the code line by line and keep track of how each variable changes.";
+  }
+
+  if (searchableText.includes("array")) {
+    return "Think about the array shape first, then map the correct index access pattern.";
+  }
+
+  if (searchableText.includes("string")) {
+    return "Focus on how string functions work and where the null terminator matters.";
+  }
+
+  if (searchableText.includes("loop")) {
+    return "Picture the loop counter at the start and end of every pass.";
+  }
+
+  if (searchableText.includes("function")) {
+    return "Check the function signature, parameters, and return type before choosing.";
+  }
+
+  return "Eliminate the invalid C syntax first, then choose the option that matches the concept.";
+}
+
+export function getQuestionSet(
+  categoryId: CategoryId,
+  difficultyId: DifficultyId,
+  count = QUESTION_BANK[categoryId][difficultyId].length,
+) {
+  const seen = new Set<string>();
+  const runPool: Question[] = [];
+
+  for (const pool of getOrderedRunPools(categoryId, difficultyId)) {
+    for (const question of pool) {
+      const fingerprint = getQuestionFingerprint(question);
+      if (seen.has(fingerprint)) continue;
+      seen.add(fingerprint);
+      runPool.push({
+        ...question,
+        difficulty: difficultyId,
+        hint: getAdaptiveHint(question),
+      });
+    }
+  }
+
+  return runPool.slice(0, Math.min(count, runPool.length));
+}
+
+export function getDemoQuestionSet(count = DEMO_QUESTION_SET.length) {
+  return DEMO_QUESTION_SET.slice(0, Math.min(count, DEMO_QUESTION_SET.length)).map((question) => ({
+    ...question,
+    hint: getAdaptiveHint(question),
+  }));
+}
+
+export function getAllQuestions() {
+  return [
+    ...Object.values(QUESTION_BANK).flatMap((categoryPool) => Object.values(categoryPool).flat()),
+    ...DEMO_QUESTION_SET,
+  ];
 }
 
 function createEmptyCompletionMap(): CategoryCompletionMap {
