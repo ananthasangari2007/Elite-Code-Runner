@@ -29,23 +29,23 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
+      { title: "C Quest - Master C Programming" },
       {
         name: "description",
         content:
-          "Code Runner Elite is a gamified web app where users run, solve coding challenges, and compete on a leaderboard.",
+          "C Quest is a gamified web app where users learn C programming, solve coding challenges, and compete on a leaderboard.",
       },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
+      { name: "author", content: "C Quest" },
+      { property: "og:title", content: "C Quest - Master C Programming" },
       {
         property: "og:description",
         content:
-          "Code Runner Elite is a gamified web app where users run, solve coding challenges, and compete on a leaderboard.",
+          "C Quest is a gamified web app where users learn C programming, solve coding challenges, and compete on a leaderboard.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Lovable" },
-      { name: "twitter:title", content: "Lovable App" },
+      { name: "twitter:site", content: "@CQuestGame" },
+      { name: "twitter:title", content: "C Quest - Master C Programming" },
       {
         name: "twitter:description",
         content:

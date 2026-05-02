@@ -407,51 +407,78 @@ export function LevelSelectScreen({
                     <Sparkles className="h-4 w-4 animate-road-bob text-amber-300" />
                     <span className="leading-relaxed">
                       {isMobile
-                        ? "Swipe the zig-zag roadmap to explore every level."
-                        : "The roadmap stays aligned in a clean left-to-right zig-zag flow."}
+                        ? "Scroll through levels in a vertical zig-zag pattern - optimized for mobile."
+                        : "The roadmap is displayed vertically in a zig-zag flow for better mobile responsiveness."}
                     </span>
                   </div>
                 </div>
 
-                <div className="-mx-4 mt-5 overflow-x-auto px-4 pb-2 overscroll-x-contain sm:-mx-6 sm:px-6">
-                  <div className="min-w-[1040px] lg:min-w-full">
-                    <div className="grid grid-cols-[repeat(6,minmax(0,1fr))] gap-4">
-                      {CATEGORY_SEQUENCE.map((categoryId, index) => {
-                        const unlocked = isCategoryUnlocked(completionMap, categoryId);
-                        const mastered = isCategoryMastered(completionMap, categoryId);
-                        const highlighted =
-                          selectedCategory != null
-                            ? selectedCategory === categoryId
-                            : activeCategory === categoryId;
-                        const completedCount = getCategoryCompletionCount(
-                          completionMap,
-                          categoryId,
-                        );
+                <div className="mt-5 space-y-4 px-0 sm:px-0">
+                  <div className="space-y-6">
+                    {CATEGORY_SEQUENCE.map((categoryId, index) => {
+                      const unlocked = isCategoryUnlocked(completionMap, categoryId);
+                      const mastered = isCategoryMastered(completionMap, categoryId);
+                      const highlighted =
+                        selectedCategory != null
+                          ? selectedCategory === categoryId
+                          : activeCategory === categoryId;
+                      const completedCount = getCategoryCompletionCount(
+                        completionMap,
+                        categoryId,
+                      );
+                      const isOddIndex = index % 2 === 1;
 
-                        return (
-                          <RoadmapLevelStop
-                            key={categoryId}
-                            categoryId={categoryId}
-                            lane={ROADMAP_LANES[categoryId]}
-                            unlocked={unlocked}
-                            mastered={mastered}
-                            selected={highlighted}
-                            completedCount={completedCount}
-                            showLeftConnector={index > 0}
-                            showRightConnector
-                            onClick={() => openLevelPanel(categoryId)}
-                          />
-                        );
-                      })}
-
-                      <RoadmapTreasureStop completedLevels={completedLevels} />
+                      return (
+                        <div
+                          key={categoryId}
+                          className={cn(
+                            "flex w-full items-center gap-4",
+                            isOddIndex ? "flex-row-reverse justify-end" : "flex-row justify-start"
+                          )}
+                        >
+                          <div className={cn("flex-1", isOddIndex ? "text-right" : "text-left")}>
+                            <div className="text-sm text-slate-400 mb-1">
+                              Level {getCategoryLevelNumber(categoryId)}
+                            </div>
+                            <div className="text-base font-semibold text-white mb-2">
+                              {getCategoryLabel(categoryId)}
+                            </div>
+                            <div className="text-xs text-slate-500">
+                              {ROADMAP_PREVIEW_LABELS[categoryId]}
+                            </div>
+                          </div>
+                          <div className="flex-shrink-0">
+                            <RoadmapLevelStop
+                              categoryId={categoryId}
+                              lane={ROADMAP_LANES[categoryId]}
+                              unlocked={unlocked}
+                              mastered={mastered}
+                              selected={highlighted}
+                              completedCount={completedCount}
+                              showLeftConnector={false}
+                              showRightConnector={false}
+                              onClick={() => openLevelPanel(categoryId)}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                    
+                    <div className="flex w-full items-center gap-4 pt-4 border-t border-slate-700">
+                      <div className="flex-1">
+                        <div className="text-sm text-slate-400 mb-1">Treasure Vault</div>
+                        <div className="text-base font-semibold text-amber-300 mb-2">Final Reward</div>
+                        <div className="text-xs text-slate-500">Unlock at Level 5</div>
+                      </div>
+                      <div className="flex-shrink-0">
+                        <RoadmapTreasureStop completedLevels={completedLevels} />
+                      </div>
                     </div>
                   </div>
                 </div>
 
                 <div className="mt-4 rounded-[1.2rem] border border-white/8 bg-white/[0.04] px-4 py-3 text-sm text-slate-300">
-                  Tap any level card on the zig-zag road to open its level panel and choose a
-                  difficulty mode.
+                  Tap any level card to open its panel and choose a difficulty mode. Complete levels to unlock new challenges!
                 </div>
               </div>
             </div>
